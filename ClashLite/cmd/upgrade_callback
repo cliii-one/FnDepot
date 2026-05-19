@@ -1,0 +1,6 @@
+#!/bin/bash
+set -euo pipefail
+# 配置文件在 data-share 目录，升级时不会被删除
+# install_callback 中有 [ ! -f config ] 保护，不会覆盖已有配置
+# 系统在 upgrade_callback 后会自动调用 main start
+exit 0

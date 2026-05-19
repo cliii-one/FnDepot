@@ -1,0 +1,32 @@
+#!/bin/bash
+# ============================================================
+# SubStore for fnOS - 卸载后回调 (uninstall_callback)
+# ============================================================
+# 执行时机：卸载完成之后
+# 用途：根据用户在卸载向导中的选择，决定是否保留数据
+#
+# 环境变量（由卸载向导传入）：
+#   wizard_data_action = "keep"   → 保留所有数据
+#   wizard_data_action = "delete" → 删除所有数据
+#
+# TRIM_PKGVAR 数据目录包含：
+#   - sub-store.json  (订阅/集合/设置等核心数据)
+#   - root.json       (日志/缓存等辅助数据)
+#   - config.json     (端口/API路径配置)
+#   - substore.log    (运行日志)
+#   - substore.pid    (进程PID文件)
+# ============================================================
+
+DATA_DIR="${TRIM_PKGVAR}"
+
+# 用户选择删除数据，或未做选择（默认保留）
+if [ "${wizard_data_action}" = "delete" ]; then
+    if [ -d "${DATA_DIR}" ]; then
+        echo "用户选择删除数据，正在清除: ${DATA_DIR}"
+        rm -rf "${DATA_DIR}"
+    fi
+else
+    echo "用户选择保留数据: ${DATA_DIR}"
+fi
+
+exit 0

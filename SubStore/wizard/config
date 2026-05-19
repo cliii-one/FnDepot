@@ -1,0 +1,19 @@
+[
+    {
+        "stepTitle": "SubStore 设置",
+        "items": [
+            {
+                "type": "text",
+                "field": "wizard_api_path",
+                "label": "API 路径前缀",
+                "initValue": "/api",
+                "rules": [
+                    {
+                        "required": true,
+                        "message": "请输入 API 路径前缀"
+                    }
+                ]
+            }
+        ]
+    }
+]

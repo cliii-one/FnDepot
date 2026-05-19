@@ -1,0 +1,26 @@
+#!/bin/bash
+# ============================================================
+# SubStore for fnOS - 升级后恢复 (upgrade_callback)
+# ============================================================
+# 执行时机：新版 fpk 解压完成之后
+# 用途：从备份恢复用户数据、修正权限
+# ============================================================
+
+DATA_DIR="${TRIM_PKGVAR}"
+BACKUP_DIR="${TRIM_PKGVAR}/.backup_upgrade"
+
+# ---- 从备份恢复数据文件 ----
+if [ -d "${BACKUP_DIR}" ]; then
+    for f in "${BACKUP_DIR}"/*.json; do
+        [ -f "$f" ] && cp -f "$f" "${DATA_DIR}/" 2>/dev/null || true
+    done
+    rm -rf "${BACKUP_DIR}"
+fi
+
+# ---- 确保 Node.js 有可执行权限 ----
+chmod 755 "${TRIM_APPDEST}/server/node" 2>/dev/null || true
+
+# ---- 修正目录权限 ----
+chown -R "${TRIM_USERNAME:-substore}:${TRIM_GROUPNAME:-substore}" "${DATA_DIR}" 2>/dev/null || true
+
+exit 0

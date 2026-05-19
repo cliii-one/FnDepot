@@ -1,0 +1,161 @@
+#!/bin/bash
+set -euo pipefail
+
+MIHOMO_BIN="${TRIM_PKGHOME}/mihomo/mihomo"
+MIHOMO_DIR="${TRIM_PKGHOME}/mihomo"
+MIHOMO_CONFIG="${MIHOMO_DIR}/config.yaml"
+PID_FILE="${TRIM_PKGVAR}/mihomo.pid"
+LOG_FILE="${TRIM_PKGVAR}/info.log"
+
+log_msg() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "${LOG_FILE}"
+}
+
+# 配置文件在共享目录
+if [ -n "${TRIM_DATA_SHARE_PATHS:-}" ]; then
+    SHARE_DIR=$(echo "${TRIM_DATA_SHARE_PATHS}" | cut -d: -f1)
+    if [ -f "${SHARE_DIR}/config.yaml" ]; then
+        MIHOMO_CONFIG="${SHARE_DIR}/config.yaml"
+    fi
+fi
+
+# 确保配置文件存在
+ensure_config() {
+    if [ ! -f "${MIHOMO_CONFIG}" ]; then
+        local template="${TRIM_APPDEST}/server/config/OneSmart.yaml"
+        if [ -f "${template}" ]; then
+            mkdir -p "$(dirname "${MIHOMO_CONFIG}")"
+            cp "${template}" "${MIHOMO_CONFIG}"
+            sed -i "s/MB_SECRET/yyds666/g" "${MIHOMO_CONFIG}"
+            sed -i "s|AIRPORT_URL1|https://example.com/subscribe?token=YOUR_TOKEN_HERE|g" "${MIHOMO_CONFIG}"
+            sed -i "s|AIRPORT_URL2|https://example.com/subscribe?token=YOUR_TOKEN_HERE|g" "${MIHOMO_CONFIG}"
+            log_msg "Config created from template: ${MIHOMO_CONFIG}"
+        fi
+    fi
+}
+
+# 复制预装文件（二进制、模型、GeoData）
+copy_bundled() {
+    local bundled_dir="${TRIM_APPDEST}/server/data/mihomo"
+    if [ -d "${bundled_dir}" ]; then
+        mkdir -p "${MIHOMO_DIR}"
+        for f in mihomo Model.bin geoip.metadb geosite.dat ASN.mmdb; do
+            if [ -f "${bundled_dir}/${f}" ] && [ ! -f "${MIHOMO_DIR}/${f}" ]; then
+                cp "${bundled_dir}/${f}" "${MIHOMO_DIR}/${f}"
+                [ "${f}" = "mihomo" ] && chmod +x "${MIHOMO_DIR}/${f}"
+            fi
+        done
+    fi
+}
+
+# 复制 metacubexd 到 ui 目录（mihomo external-ui）
+copy_ui() {
+    local src="${TRIM_APPDEST}/server/public"
+    local dst="${MIHOMO_DIR}/ui"
+    if [ -d "${src}" ] && [ ! -d "${dst}" ]; then
+        cp -r "${src}" "${dst}"
+        log_msg "metacubexd copied to ${dst}"
+    fi
+}
+
+start_mihomo() {
+    if check_status; then
+        return 0
+    fi
+
+    copy_bundled
+    copy_ui
+    ensure_config
+
+    if [ ! -x "${MIHOMO_BIN}" ]; then
+        log_msg "ERROR: mihomo binary not found at ${MIHOMO_BIN}"
+        return 1
+    fi
+
+    log_msg "Starting mihomo ..."
+
+    local args=(-d "${MIHOMO_DIR}")
+    if [ "${MIHOMO_CONFIG}" != "${MIHOMO_DIR}/config.yaml" ]; then
+        args+=(-f "${MIHOMO_CONFIG}")
+    fi
+
+    "${MIHOMO_BIN}" "${args[@]}" >> "${LOG_FILE}" 2>&1 &
+    local pid=$!
+    printf "%s" "${pid}" > "${PID_FILE}"
+    log_msg "mihomo started with PID ${pid}"
+    return 0
+}
+
+stop_mihomo() {
+    log_msg "Stopping mihomo ..."
+
+    if [ -r "${PID_FILE}" ]; then
+        local pid
+        pid=$(head -n 1 "${PID_FILE}" | tr -d '[:space:]')
+
+        if [ -n "${pid}" ] && kill -0 "${pid}" 2>/dev/null; then
+            log_msg "Sending TERM to PID:${pid}"
+            kill -TERM "${pid}" 2>/dev/null || true
+
+            local count=0
+            while kill -0 "${pid}" 2>/dev/null && [ ${count} -lt 10 ]; do
+                sleep 1
+                count=$((count + 1))
+            done
+
+            if kill -0 "${pid}" 2>/dev/null; then
+                log_msg "Sending KILL to PID:${pid}"
+                kill -KILL "${pid}" 2>/dev/null || true
+                sleep 1
+            fi
+        fi
+        rm -f "${PID_FILE}"
+    fi
+
+    # 清理孤儿进程
+    local mihomo_pid
+    mihomo_pid=$(pgrep -f "mihomo -d ${MIHOMO_DIR}" 2>/dev/null) || true
+    if [ -n "${mihomo_pid}" ]; then
+        log_msg "Killing orphan mihomo: ${mihomo_pid}"
+        kill -TERM ${mihomo_pid} 2>/dev/null || true
+        sleep 2
+        mihomo_pid=$(pgrep -f "mihomo -d ${MIHOMO_DIR}" 2>/dev/null) || true
+        if [ -n "${mihomo_pid}" ]; then
+            kill -KILL ${mihomo_pid} 2>/dev/null || true
+        fi
+    fi
+    return 0
+}
+
+check_status() {
+    if [ -f "${PID_FILE}" ]; then
+        local pid
+        pid=$(head -n 1 "${PID_FILE}" | tr -d '[:space:]')
+        if [ -n "${pid}" ] && kill -0 "${pid}" 2>/dev/null; then
+            return 0
+        else
+            rm -f "${PID_FILE}"
+        fi
+    fi
+    return 1
+}
+
+case "${1:-}" in
+start)
+    start_mihomo
+    ;;
+stop)
+    stop_mihomo
+    ;;
+status)
+    if check_status; then
+        exit 0
+    else
+        exit 3
+    fi
+    ;;
+*)
+    echo "Usage: $0 {start|stop|status}" >&2
+    exit 1
+    ;;
+esac

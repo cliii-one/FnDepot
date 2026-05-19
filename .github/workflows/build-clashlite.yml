@@ -1,0 +1,212 @@
+name: 构建 ClashLite FPK
+
+on:
+  push:
+    tags: ['clashlite-v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号（留空则读取 manifest 默认版本）'
+        required: false
+        default: ''
+      create_release:
+        description: '创建 GitHub Release'
+        required: false
+        default: 'true'
+        type: choice
+        options: ['true', 'false']
+
+env:
+  MIHOMO_REPO: vernesong/mihomo
+  MIHOMO_TAG: Prerelease-Alpha
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: 构建 ${{ matrix.arch }}
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            mihomo_arch: amd64
+            fnpack_platform: x86
+          - arch: arm64
+            mihomo_arch: arm64
+            fnpack_platform: arm
+    defaults:
+      run:
+        working-directory: ClashLite
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 确定版本号
+        id: version
+        run: |
+          MANIFEST_VER=$(grep '^version' manifest | awk -F'=' '{print $2}' | tr -d ' ')
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [[ "${{ github.ref }}" == refs/tags/clashlite-v* ]]; then
+            VERSION="${{ github.ref_name }}"
+            VERSION="${VERSION#clashlite-v}"
+          else
+            VERSION="${MANIFEST_VER}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "版本号: $VERSION"
+
+      - name: 获取 mihomo 内核下载链接
+        id: mihomo
+        run: |
+          API_URL="https://api.github.com/repos/${{ env.MIHOMO_REPO }}/releases/tags/${{ env.MIHOMO_TAG }}"
+          RELEASE=$(curl -sL "$API_URL")
+          PATTERN="mihomo-linux-${{ matrix.mihomo_arch }}-alpha-smart-"
+          DOWNLOAD_URL=$(echo "$RELEASE" | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          for a in data.get('assets', []):
+              name = a['name']
+              if (name.startswith('$PATTERN') and name.endswith('.gz')
+                  and 'compatible' not in name and 'softfloat' not in name
+                  and not any(f'-v{i}-' in name for i in range(1,6))
+                  and not any(f'-go{i}' in name for i in range(1,6))):
+                  print(a['browser_download_url'])
+                  break
+          ")
+          if [ -z "$DOWNLOAD_URL" ]; then
+            echo "错误：未找到 linux-${{ matrix.mihomo_arch }} 的 mihomo 二进制文件"
+            exit 1
+          fi
+          echo "download_url=$DOWNLOAD_URL" >> $GITHUB_OUTPUT
+
+      - name: 下载 mihomo 内核
+        run: |
+          mkdir -p app/server/data/mihomo
+          curl -sL "${{ steps.mihomo.outputs.download_url }}" -o mihomo.gz
+          gunzip -f mihomo.gz && chmod +x mihomo && mv mihomo app/server/data/mihomo/mihomo
+          echo "mihomo: $(du -h app/server/data/mihomo/mihomo | cut -f1)"
+
+      - name: 下载 LightGBM 模型
+        run: |
+          curl -sL "https://github.com/vernesong/mihomo/releases/download/LightGBM-Model/Model.bin" \
+            -o app/server/data/mihomo/Model.bin || echo "模型下载失败"
+
+      - name: 下载 GeoIP/GeoSite/ASN 数据
+        run: |
+          curl -sL "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geoip.metadb" -o app/server/data/mihomo/geoip.metadb
+          curl -sL "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/geosite.dat" -o app/server/data/mihomo/geosite.dat
+          curl -sL "https://fastly.jsdelivr.net/gh/MetaCubeX/meta-rules-dat@release/GeoLite2-ASN.mmdb" -o app/server/data/mihomo/ASN.mmdb
+          ls -lh app/server/data/mihomo/
+
+      - name: 下载 metacubexd 前端
+        run: |
+          mkdir -p app/server/public
+          curl -sL "https://github.com/MetaCubeX/metacubexd/archive/refs/heads/gh-pages.zip" -o metacubexd.zip
+          TMP_DIR=$(mktemp -d)
+          unzip -q -o metacubexd.zip -d "$TMP_DIR"
+          cp -r "$TMP_DIR"/metacubexd-gh-pages/* app/server/public/
+          rm -rf "$TMP_DIR" metacubexd.zip
+          echo "前端文件数量: $(ls app/server/public/ | wc -l)"
+
+      - name: 更新 manifest
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          PLATFORM="${{ matrix.fnpack_platform }}"
+          sed -i "s/^version.*/version = ${VERSION}/" manifest
+          sed -i "s/^platform.*/platform = ${PLATFORM}/" manifest
+          echo "=== manifest ===" && cat manifest
+
+      - name: 修复脚本权限
+        run: |
+          for f in cmd/main cmd/install_init cmd/install_callback cmd/uninstall_init cmd/uninstall_callback cmd/upgrade_init cmd/upgrade_callback cmd/config_init cmd/config_callback; do
+            [ -f "$f" ] && sed -i 's/\r$//' "$f" && chmod +x "$f"
+          done
+
+      - name: 打包 FPK
+        run: |
+          python3 -c "
+          import tarfile, os
+          with tarfile.open('app.tgz', 'w:gz') as tar:
+              for root, dirs, files in os.walk('app'):
+                  for f in files:
+                      full = os.path.join(root, f)
+                      tar.add(full, arcname=os.path.relpath(full, 'app'))
+          "
+          tar -cf clashlite.tar manifest ICON.PNG ICON_256.PNG cmd/ config/ wizard/ app.tgz
+          gzip -1 clashlite.tar && rm -f app.tgz
+
+          if [ "${{ matrix.arch }}" = "x86_64" ]; then
+            mv clashlite.tar.gz clashlite-X86.fpk
+          else
+            mv clashlite.tar.gz clashlite-ARM.fpk
+          fi
+          echo "构建完成: $(ls -h *.fpk)"
+
+      - name: 上传构建产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: clashlite-${{ matrix.arch }}
+          path: ClashLite/clashlite-*.fpk
+          retention-days: 30
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/clashlite-v') || github.event.inputs.create_release == 'true'
+    permissions:
+      contents: write
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 下载所有 FPK
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts/
+
+      - name: 删除旧版本 Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASES=$(gh release list --limit 100 --json tagName --jq '.[].tagName' 2>/dev/null || echo "")
+          echo "$RELEASES" | while read -r tag; do
+            case "$tag" in clashlite-*) gh release delete "${tag}" --yes --cleanup-tag 2>/dev/null || true;; esac
+          done
+
+      - name: 确定构建信息
+        id: info
+        run: |
+          MANIFEST_VER=$(grep '^version' ClashLite/manifest | awk -F'=' '{print $2}' | tr -d ' ')
+          if [[ "${{ github.ref }}" == refs/tags/clashlite-v* ]]; then
+            TAG="${{ github.ref_name }}" && VERSION="${TAG#clashlite-v}"
+          elif [ -n "${{ github.event.inputs.version }}" ]; then
+            TAG="clashlite-v${{ github.event.inputs.version }}" && VERSION="${{ github.event.inputs.version }}"
+          else
+            TAG="clashlite-v${MANIFEST_VER}" && VERSION="${MANIFEST_VER}"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "build_time=$(TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M CST')" >> $GITHUB_OUTPUT
+
+      - name: 创建 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.info.outputs.tag }}
+          name: "ClashLite ${{ steps.info.outputs.version }}"
+          files: ./artifacts/**/*.fpk
+          generate_release_notes: false
+          body: |
+            ## ClashLite v${{ steps.info.outputs.version }}
+
+            基于 vernesong/mihomo (Alpha-Smart) 内核的飞牛 fnOS 代理管理应用，集成 metacubexd 管理面板。
+
+            ### 📦 下载
+
+            | 文件 | 架构 | 适用设备 |
+            |------|------|----------|
+            | `clashlite-X86.fpk` | x86_64 | Intel/AMD NAS |
+            | `clashlite-ARM.fpk` | arm64 | ARM NAS |
+
+            ---
+            构建时间：${{ steps.info.outputs.build_time }}

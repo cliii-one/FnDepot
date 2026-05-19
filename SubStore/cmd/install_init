@@ -1,0 +1,23 @@
+#!/bin/bash
+# ============================================================
+# SubStore for fnOS - 安装前检查 (install_init)
+# ============================================================
+# 执行时机：fpk 解压之前
+# 用途：检查安装前置条件，不满足则中止安装
+# ============================================================
+
+# 检查服务端口是否被占用
+API_PORT="${TRIM_SERVICE_PORT:-8001}"
+if command -v ss &>/dev/null; then
+    if ss -tlnp 2>/dev/null | grep -q ":${API_PORT} "; then
+        echo "端口 ${API_PORT} 已被占用。" > "${TRIM_TEMP_LOGFILE}"
+        exit 1
+    fi
+elif command -v netstat &>/dev/null; then
+    if netstat -tlnp 2>/dev/null | grep -q ":${API_PORT} "; then
+        echo "端口 ${API_PORT} 已被占用。" > "${TRIM_TEMP_LOGFILE}"
+        exit 1
+    fi
+fi
+
+exit 0

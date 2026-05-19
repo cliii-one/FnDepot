@@ -1,0 +1,13 @@
+{
+    ".url": {
+        "substore.Application": {
+            "title": "SubStore",
+            "icon": "images/icon-{0}.png",
+            "type": "url",
+            "protocol": "http",
+            "port": "8001",
+            "url": "/",
+            "allUsers": true
+        }
+    }
+}

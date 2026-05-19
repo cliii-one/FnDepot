@@ -1,0 +1,18 @@
+appname               = clashlite
+version               = 1.0.0
+display_name          = ClashLite
+desc                  = 基于 vernesong/mihomo (Alpha-Smart) 内核的代理管理面板，支持 Smart 代理组、metacubexd 前端、多架构
+platform              = arm
+source                = thirdparty
+maintainer            = cliii-one
+distributor           = cliii-one
+os_min_version        = 1.1.8
+desktop_uidir         = ui
+desktop_applaunchname = clashlite.Application
+service_port          = 9090
+checkport             = true
+ctl_stop              = true
+disable_authorization_path = false
+changelog             = """
+v2.0.0 初始版本
+"""

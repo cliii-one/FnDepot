@@ -1,0 +1,58 @@
+#!/bin/bash
+set -euo pipefail
+
+mkdir -p "${TRIM_PKGHOME}/mihomo"
+mkdir -p "${TRIM_PKGVAR}"
+
+# Read wizard values
+CONFIG_PROFILE="${wizard_config_profile:-OneSmart}"
+SECRET="${wizard_secret:-yyds666}"
+PROVIDER_URL_1="${wizard_provider_url_1:-}"
+PROVIDER_URL_2="${wizard_provider_url_2:-}"
+PROVIDER_URL_3="${wizard_provider_url_3:-}"
+
+# Config file location: prefer data-share directory
+CONFIG_DIR="${TRIM_PKGHOME}/mihomo"
+if [ -n "${TRIM_DATA_SHARE_PATHS:-}" ]; then
+    SHARE_DIR=$(echo "${TRIM_DATA_SHARE_PATHS}" | cut -d: -f1)
+    [ -n "${SHARE_DIR}" ] && CONFIG_DIR="${SHARE_DIR}"
+fi
+mkdir -p "${CONFIG_DIR}"
+
+# Generate config from selected template
+TEMPLATE="${TRIM_APPDEST}/server/config/${CONFIG_PROFILE}.yaml"
+CONFIG_FILE="${CONFIG_DIR}/config.yaml"
+
+if [ -f "${TEMPLATE}" ] && [ ! -f "${CONFIG_FILE}" ]; then
+    cp "${TEMPLATE}" "${CONFIG_FILE}"
+    sed -i "s/MB_SECRET/${SECRET}/g" "${CONFIG_FILE}"
+
+    # OneSmart: single provider (AIRPORT_URL1 only)
+    # OneSmartPro: three providers (AIRPORT_URL1/2/3)
+    if [ -n "${PROVIDER_URL_1}" ]; then
+        sed -i "s|AIRPORT_URL1|${PROVIDER_URL_1}|g" "${CONFIG_FILE}"
+    else
+        sed -i "s|AIRPORT_URL1|https://example.com/subscribe?token=YOUR_TOKEN_HERE|g" "${CONFIG_FILE}"
+    fi
+
+    # AIRPORT_URL2/3 only exist in OneSmartPro template
+    if grep -q "AIRPORT_URL2" "${CONFIG_FILE}" 2>/dev/null; then
+        # Single link fallback: use URL1 for URL2 if not provided
+        URL2="${PROVIDER_URL_2:-${PROVIDER_URL_1:-}}"
+        if [ -n "${URL2}" ]; then
+            sed -i "s|AIRPORT_URL2|${URL2}|g" "${CONFIG_FILE}"
+        else
+            sed -i "s|AIRPORT_URL2|https://example.com/subscribe?token=YOUR_TOKEN_HERE|g" "${CONFIG_FILE}"
+        fi
+    fi
+
+    if grep -q "AIRPORT_URL3" "${CONFIG_FILE}" 2>/dev/null; then
+        if [ -n "${PROVIDER_URL_3}" ]; then
+            sed -i "s|AIRPORT_URL3|${PROVIDER_URL_3}|g" "${CONFIG_FILE}"
+        else
+            sed -i "s|AIRPORT_URL3|https://example.com/subscribe?token=YOUR_TOKEN_HERE|g" "${CONFIG_FILE}"
+        fi
+    fi
+fi
+
+exit 0

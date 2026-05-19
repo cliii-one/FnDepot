@@ -1,0 +1,49 @@
+# ============================================================
+# SubStore for fnOS - 应用清单
+# ============================================================
+# 此文件定义飞牛应用中心展示的元数据信息。
+# platform 字段由 GitHub Actions 构建时自动替换为 x86 / arm。
+# ============================================================
+
+# 应用标识（全局唯一，用于飞牛内部索引）
+appname               = substore
+
+# 应用版本号
+version               = 1.0.0
+
+# 应用中心显示名称
+display_name          = SubStore
+
+# 应用描述（支持 HTML 标签，展示在应用中心详情页）
+desc                  = 高级订阅管理工具，支持多种代理客户端格式的订阅转换、格式化和管理。<br><br><b>功能特性：</b><ul><li>支持 Clash / Surge / Loon / QX / Stash / Shadowrocket 等多种格式</li><li>订阅转换：在各平台格式间自由转换</li><li>订阅格式化：过滤、排序、重命名、脚本操作</li><li>组合订阅：将多个订阅合并为一个 URL</li><li>可视化 Web 管理面板 (PWA)</li><li>支持 Gist 备份与同步</li></ul>
+
+# 目标平台（x86 或 arm，由 CI 构建时自动设置）
+platform              = x86
+
+# 应用来源标识
+source                = thirdparty
+
+# 维护者信息
+maintainer            = SubStore
+maintainer_url        = https://github.com/sub-store-org/Sub-Store
+
+# 分发者信息
+distributor           = cliii-one
+
+# 最低支持的飞牛系统版本
+os_min_version        = 0.9.0
+
+# 桌面 UI 目录（相对于 app/ 目录，即 app/www/）
+desktop_uidir         = ui
+
+# 点击应用图标时打开的桌面入口名称（对应 app/www/config 中的键名）
+desktop_applaunchname = substore.Application
+
+# 应用服务监听端口（安装向导可修改）
+service_port          = 8001
+
+# 是否检查端口冲突
+checkport             = true
+
+# 更新日志（支持 HTML，展示在应用中心更新页面）
+changelog             = <b>v1.0.0</b><ul><li>初始版本发布</li><li>Sub-Store v2.23.14</li><li>Node.js 24 LTS 运行时</li><li>内置前端 PWA (MERGE 模式)</li><li>支持多种代理协议格式转换</li></ul>

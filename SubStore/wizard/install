@@ -1,0 +1,23 @@
+[
+    {
+        "stepTitle": "欢迎安装 SubStore",
+        "items": [
+            {
+                "type": "text",
+                "field": "wizard_api_path",
+                "label": "API 路径前缀",
+                "initValue": "/api",
+                "rules": [
+                    {
+                        "required": true,
+                        "message": "请输入 API 路径前缀"
+                    }
+                ]
+            },
+            {
+                "type": "tips",
+                "helpText": "API 路径用于访问后端接口，默认 /api。可自定义为随机路径增强安全性，如 /xK9m2p,则后端地址为：http://飞牛IP:8001/xK9m2p"
+            }
+        ]
+    }
+]

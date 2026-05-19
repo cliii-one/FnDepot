@@ -1,0 +1,17 @@
+#!/bin/bash
+# ============================================================
+# SubStore for fnOS - 配置变更后回调 (config_callback)
+# ============================================================
+# 执行时机：用户在飞牛应用中心修改配置并保存之后
+# 用途：根据向导输入更新 config.json
+#
+# 向导传入的环境变量：
+#   wizard_api_path - 用户配置的 API 路径前缀
+# ============================================================
+
+CONFIG_FILE="${TRIM_PKGVAR}/config.json"
+
+API_PATH="${wizard_api_path:-/api}"
+printf '{"api_path":"%s"}\n' "$API_PATH" > "${CONFIG_FILE}"
+
+exit 0

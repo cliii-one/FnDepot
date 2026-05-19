@@ -1,0 +1,24 @@
+#!/bin/bash
+# ============================================================
+# SubStore for fnOS - 卸载前停止服务 (uninstall_init)
+# ============================================================
+# 执行时机：卸载开始之前
+# 用途：停止 Sub-Store 服务，确保文件可以被安全删除
+# ============================================================
+
+PID_FILE="${TRIM_PKGVAR}/substore.pid"
+LOG_FILE="${TRIM_PKGVAR}/substore.log"
+
+if [ -r "${PID_FILE}" ]; then
+    pid=$(head -n 1 "${PID_FILE}" | tr -d '[:space:]')
+    if kill -0 "${pid}" 2>/dev/null; then
+        kill -TERM "${pid}" >> ${LOG_FILE} 2>&1
+        sleep 2
+        kill -KILL "${pid}" 2>/dev/null || true
+    fi
+    rm -f "${PID_FILE}"
+fi
+
+pkill -f "node.*sub-store.min.js" 2>/dev/null || true
+
+exit 0

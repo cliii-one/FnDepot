@@ -1,0 +1,38 @@
+#!/bin/bash
+# ============================================================
+# SubStore for fnOS - 安装后初始化 (install_callback)
+# ============================================================
+# 执行时机：fpk 解压 + 安装向导填写完成之后
+# 用途：初始化数据目录、创建配置文件
+#
+# 向导传入的环境变量：
+#   wizard_api_path - 用户配置的 API 路径前缀
+# ============================================================
+
+DATA_DIR="${TRIM_PKGVAR}"
+NODE_BIN="${TRIM_APPDEST}/server/node"
+CONFIG_FILE="${TRIM_PKGVAR}/config.json"
+
+# ---- 确保 Node.js 二进制有可执行权限 ----
+if [ -f "${NODE_BIN}" ]; then
+    chmod 755 "${NODE_BIN}"
+else
+    echo "Node.js 运行时未找到: ${NODE_BIN}" > "${TRIM_TEMP_LOGFILE}"
+    exit 1
+fi
+
+# ---- 创建数据目录 ----
+mkdir -p "${DATA_DIR}"
+
+# ---- 初始化 Sub-Store 数据文件 ----
+[ -f "${DATA_DIR}/sub-store.json" ] || echo '{}' > "${DATA_DIR}/sub-store.json"
+[ -f "${DATA_DIR}/root.json" ] || echo '{}' > "${DATA_DIR}/root.json"
+
+# ---- 读取向导配置，生成 config.json ----
+API_PATH="${wizard_api_path:-/api}"
+printf '{"api_path":"%s"}\n' "$API_PATH" > "${CONFIG_FILE}"
+
+# ---- 设置目录权限 ----
+chown -R "${TRIM_USERNAME:-substore}:${TRIM_GROUPNAME:-substore}" "${DATA_DIR}" 2>/dev/null || true
+
+exit 0

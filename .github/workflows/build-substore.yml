@@ -1,0 +1,218 @@
+name: 构建 SubStore FPK
+
+on:
+  push:
+    tags: ['substore-v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号（留空则读取 manifest 默认版本）'
+        required: false
+        default: ''
+      create_release:
+        description: '创建 GitHub Release'
+        required: false
+        default: 'true'
+        type: choice
+        options: ['true', 'false']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: 构建 ${{ matrix.arch }}
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            node_arch: x64
+            fnpack_platform: x86
+          - arch: arm64
+            node_arch: arm64
+            fnpack_platform: arm
+    defaults:
+      run:
+        working-directory: SubStore
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 确定版本号
+        id: version
+        run: |
+          MANIFEST_VER=$(grep '^version' manifest | awk -F'=' '{print $2}' | tr -d ' ')
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [[ "${{ github.ref }}" == refs/tags/substore-v* ]]; then
+            VERSION="${{ github.ref_name }}"
+            VERSION="${VERSION#substore-v}"
+          else
+            VERSION="${MANIFEST_VER}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "版本号: $VERSION"
+
+      - name: 获取后端版本号
+        id: backend_ver
+        run: |
+          VER=$(curl -fsSL "https://api.github.com/repos/sub-store-org/Sub-Store/releases/latest" | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])" 2>/dev/null | sed 's/^v//')
+          echo "version=$VER" >> $GITHUB_OUTPUT
+          echo "📦 后端版本: v${VER}"
+
+      - name: 下载后端 bundle
+        run: |
+          curl -fsSL -o app/server/sub-store.min.js "https://github.com/sub-store-org/Sub-Store/releases/latest/download/sub-store.bundle.js"
+          echo "✅ 后端 bundle: $(du -h app/server/sub-store.min.js | cut -f1)"
+
+      - name: 克隆并构建前端
+        run: |
+          git clone --depth=1 https://github.com/sub-store-org/Sub-Store-Front-End.git /tmp/sub-store-frontend
+          cd /tmp/sub-store-frontend
+          npm install -g pnpm && corepack enable && corepack prepare pnpm@latest --activate
+          pnpm i --no-frozen-lockfile
+          pnpm build
+          cp -r dist/* $GITHUB_WORKSPACE/SubStore/app/www/
+          echo "✅ 前端构建完成"
+
+      - name: 获取前端版本号
+        id: frontend_ver
+        run: |
+          VER=$(node --eval="process.stdout.write(require('/tmp/sub-store-frontend/package.json').version)")
+          echo "version=$VER" >> $GITHUB_OUTPUT
+          echo "📦 前端版本: v${VER}"
+
+      - name: 配置 Node.js 并下载运行时
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: 下载 Node.js 运行时
+        run: |
+          NODE_VER="24.15.0"
+          mkdir -p app/server
+          curl -fsSL -o node.tar.xz "https://nodejs.org/dist/v${NODE_VER}/node-v${NODE_VER}-linux-${{ matrix.node_arch }}.tar.xz"
+          mkdir -p _ne && tar xf node.tar.xz -C _ne
+          cp "$(find _ne -name node -type f | head -1)" app/server/node
+          chmod +x app/server/node
+          strip app/server/node 2>/dev/null || true
+          rm -rf _ne node.tar.xz
+          echo "✅ Node.js: $(du -h app/server/node | cut -f1)"
+
+      - name: 更新 manifest
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          PLATFORM="${{ matrix.fnpack_platform }}"
+          sed -i "s/^version.*/version = ${VERSION}/" manifest
+          sed -i "s/^platform.*/platform = ${PLATFORM}/" manifest
+
+      - name: 修复脚本权限
+        run: |
+          for f in cmd/main cmd/install_init cmd/install_callback cmd/uninstall_init cmd/uninstall_callback cmd/upgrade_init cmd/upgrade_callback cmd/config_init cmd/config_callback; do
+            [ -f "$f" ] && sed -i 's/\r$//' "$f" && chmod +x "$f"
+          done
+
+      - name: 下载 fnpack 并打包
+        run: |
+          curl -fsSL -o /tmp/fnpack https://static2.fnnas.com/fnpack/fnpack-1.2.1-linux-amd64
+          chmod +x /tmp/fnpack
+          /tmp/fnpack build --directory .
+          if [ "${{ matrix.arch }}" = "x86_64" ]; then
+            mv substore.fpk substore-X86.fpk
+          else
+            mv substore.fpk substore-ARM.fpk
+          fi
+          echo "✅ 构建完成: $(ls -lh *.fpk)"
+
+      - name: 保存版本信息
+        if: matrix.arch == 'x86_64'
+        run: |
+          echo "${{ steps.backend_ver.outputs.version }}" > backend_ver.txt
+          echo "${{ steps.frontend_ver.outputs.version }}" > frontend_ver.txt
+
+      - name: 上传 FPK
+        uses: actions/upload-artifact@v4
+        with:
+          name: substore-${{ matrix.arch }}
+          path: SubStore/substore-*.fpk
+          retention-days: 30
+
+      - name: 上传版本信息
+        if: matrix.arch == 'x86_64'
+        uses: actions/upload-artifact@v4
+        with:
+          name: version-info
+          path: SubStore/*_ver.txt
+          retention-days: 1
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/substore-v') || github.event.inputs.create_release == 'true'
+    permissions:
+      contents: write
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 下载所有 FPK
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts/
+
+      - name: 删除旧版本 Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASES=$(gh release list --limit 100 --json tagName --jq '.[].tagName' 2>/dev/null || echo "")
+          echo "$RELEASES" | while read -r tag; do
+            case "$tag" in substore-*) gh release delete "${tag}" --yes --cleanup-tag 2>/dev/null || true;; esac
+          done
+
+      - name: 确定构建信息
+        id: info
+        run: |
+          MANIFEST_VER=$(grep '^version' SubStore/manifest | awk -F'=' '{print $2}' | tr -d ' ')
+          if [[ "${{ github.ref }}" == refs/tags/substore-v* ]]; then
+            TAG="${{ github.ref_name }}" && VERSION="${TAG#substore-v}"
+          elif [ -n "${{ github.event.inputs.version }}" ]; then
+            TAG="substore-v${{ github.event.inputs.version }}" && VERSION="${{ github.event.inputs.version }}"
+          else
+            TAG="substore-v${MANIFEST_VER}" && VERSION="${MANIFEST_VER}"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "build_time=$(TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M CST')" >> $GITHUB_OUTPUT
+          BE_VER=$(cat artifacts/version-info/backend_ver.txt 2>/dev/null || echo "unknown")
+          FE_VER=$(cat artifacts/version-info/frontend_ver.txt 2>/dev/null || echo "unknown")
+          echo "backend_ver=$BE_VER" >> $GITHUB_OUTPUT
+          echo "frontend_ver=$FE_VER" >> $GITHUB_OUTPUT
+
+      - name: 创建 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.info.outputs.tag }}
+          name: "SubStore ${{ steps.info.outputs.version }}"
+          files: ./artifacts/**/*.fpk
+          generate_release_notes: false
+          body: |
+            ## SubStore v${{ steps.info.outputs.version }}
+
+            基于 Sub-Store 的飞牛 fnOS 原生应用，支持多种代理客户端格式的订阅转换和管理。
+
+            ### 📦 下载
+
+            | 文件 | 架构 | 适用设备 |
+            |------|------|----------|
+            | `substore-X86.fpk` | x86_64 | Intel/AMD NAS |
+            | `substore-ARM.fpk` | arm64 | ARM NAS |
+
+            ### 📦 组件版本
+
+            | 组件 | 版本 |
+            |------|------|
+            | Sub-Store 后端 | v${{ steps.info.outputs.backend_ver }} |
+            | Sub-Store 前端 | v${{ steps.info.outputs.frontend_ver }} |
+            | Node.js | v24.15.0 LTS |
+
+            ---
+            构建时间：${{ steps.info.outputs.build_time }}

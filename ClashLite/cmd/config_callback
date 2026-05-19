@@ -1,0 +1,72 @@
+#!/bin/bash
+
+# Read wizard values
+CONFIG_PROFILE="${wizard_config_profile:-}"
+SECRET="${wizard_secret:-}"
+PROVIDER_URL_1="${wizard_provider_url_1:-}"
+PROVIDER_URL_2="${wizard_provider_url_2:-}"
+PROVIDER_URL_3="${wizard_provider_url_3:-}"
+
+# Find config file
+CONFIG_FILE=""
+if [ -n "${TRIM_DATA_SHARE_PATHS:-}" ]; then
+    SHARE_DIR=$(echo "${TRIM_DATA_SHARE_PATHS}" | cut -d: -f1)
+    if [ -f "${SHARE_DIR}/config.yaml" ]; then
+        CONFIG_FILE="${SHARE_DIR}/config.yaml"
+    fi
+fi
+if [ -z "${CONFIG_FILE}" ] && [ -f "${TRIM_PKGHOME}/mihomo/config.yaml" ]; then
+    CONFIG_FILE="${TRIM_PKGHOME}/mihomo/config.yaml"
+fi
+
+[ -z "${CONFIG_FILE}" ] && exit 0
+
+# Helper: extract URL from config by provider name
+extract_url() {
+    local name="$1" file="$2"
+    grep "${name}" "${file}" 2>/dev/null | sed "s|.*url: '\([^']*\)'.*|\1|" | head -1
+}
+
+# Switch config profile if selected
+if [ -n "${CONFIG_PROFILE}" ]; then
+    TEMPLATE="${TRIM_APPDEST}/server/config/${CONFIG_PROFILE}.yaml"
+    if [ -f "${TEMPLATE}" ]; then
+        # Save current values before overwriting
+        OLD_SECRET=$(grep '^secret:' "${CONFIG_FILE}" 2>/dev/null | awk '{print $2}' || echo "yyds666")
+        OLD_URL_1=$(extract_url "优质服务商" "${CONFIG_FILE}")
+        OLD_URL_2=$(extract_url "备用服务商" "${CONFIG_FILE}")
+        OLD_URL_3=$(extract_url "落地服务商" "${CONFIG_FILE}")
+
+        # Switch to new template
+        cp "${TEMPLATE}" "${CONFIG_FILE}"
+
+        # Restore: use wizard value > old value > default placeholder
+        APPLY_SECRET="${SECRET:-${OLD_SECRET}}"
+        APPLY_URL_1="${PROVIDER_URL_1:-${OLD_URL_1:-https://example.com/subscribe?token=YOUR_TOKEN_HERE}}"
+        APPLY_URL_2="${PROVIDER_URL_2:-${OLD_URL_2:-https://example.com/subscribe?token=YOUR_TOKEN_HERE}}"
+        APPLY_URL_3="${PROVIDER_URL_3:-${OLD_URL_3:-https://example.com/subscribe?token=YOUR_TOKEN_HERE}}"
+
+        sed -i "s/MB_SECRET/${APPLY_SECRET}/g" "${CONFIG_FILE}"
+        sed -i "s|AIRPORT_URL1|${APPLY_URL_1}|g" "${CONFIG_FILE}"
+        sed -i "s|AIRPORT_URL2|${APPLY_URL_2}|g" "${CONFIG_FILE}"
+        sed -i "s|AIRPORT_URL3|${APPLY_URL_3}|g" "${CONFIG_FILE}"
+    fi
+fi
+
+# Apply individual changes (if not switching profile)
+if [ -z "${CONFIG_PROFILE}" ]; then
+    if [ -n "${SECRET}" ]; then
+        sed -i "s/^secret:.*/secret: ${SECRET}/" "${CONFIG_FILE}"
+        sed -i "s/^- mihomo:.*/- mihomo:${SECRET}/" "${CONFIG_FILE}"
+    fi
+
+    [ -n "${PROVIDER_URL_1}" ] && sed -i "/优质服务商/s|url: '[^']*'|url: '${PROVIDER_URL_1}'|" "${CONFIG_FILE}"
+    [ -n "${PROVIDER_URL_2}" ] && sed -i "/备用服务商/s|url: '[^']*'|url: '${PROVIDER_URL_2}'|" "${CONFIG_FILE}"
+    [ -n "${PROVIDER_URL_3}" ] && sed -i "/落地服务商/s|url: '[^']*'|url: '${PROVIDER_URL_3}'|" "${CONFIG_FILE}"
+fi
+
+# Restart mihomo
+"${TRIM_APPDEST}/cmd/main" stop 2>/dev/null
+"${TRIM_APPDEST}/cmd/main" start 2>/dev/null
+
+exit 0

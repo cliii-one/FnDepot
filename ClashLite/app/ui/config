@@ -1,0 +1,16 @@
+{
+    ".url": {
+        "clashlite.Application": {
+            "title": "ClashLite",
+            "icon": "images/icon-{0}.png",
+            "type": "iframe",
+            "protocol": "http",
+            "port": "9090",
+            "url": "/ui",
+            "allUsers": true,
+            "control": {
+                "accessPerm": "editable"
+            }
+        }
+    }
+}
