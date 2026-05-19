@@ -15,10 +15,10 @@
 
 ```bash
 # 构建 ClashLite
-git tag clashlite-v2.0.0 && git push origin clashlite-v2.0.0
+git tag clashlite-v1.0.0 && git push origin clashlite-v1.0.0
 
 # 构建 SubStore
-git tag substore-v1.0.1 && git push origin substore-v1.0.1
+git tag substore-v1.0.0 && git push origin substore-v1.0.0
 ```
 
 也可以在 Actions 页面手动触发。
