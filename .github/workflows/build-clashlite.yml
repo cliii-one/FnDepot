@@ -58,9 +58,11 @@ jobs:
 
       - name: 获取 mihomo 内核下载链接
         id: mihomo
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           API_URL="https://api.github.com/repos/${{ env.MIHOMO_REPO }}/releases/tags/${{ env.MIHOMO_TAG }}"
-          RELEASE=$(curl -sL "$API_URL")
+          RELEASE=$(curl -sL -H "Authorization: token $GH_TOKEN" "$API_URL")
           PATTERN="mihomo-linux-${{ matrix.mihomo_arch }}-alpha-smart-"
           DOWNLOAD_URL=$(echo "$RELEASE" | python3 -c "
           import json, sys

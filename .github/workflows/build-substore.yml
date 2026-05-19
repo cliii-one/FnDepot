@@ -54,8 +54,10 @@ jobs:
 
       - name: 获取后端版本号
         id: backend_ver
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VER=$(curl -fsSL "https://api.github.com/repos/sub-store-org/Sub-Store/releases/latest" | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])" 2>/dev/null | sed 's/^v//')
+          VER=$(curl -fsSL -H "Authorization: token $GH_TOKEN" "https://api.github.com/repos/sub-store-org/Sub-Store/releases/latest" | python3 -c "import sys,json; print(json.load(sys.stdin)['tag_name'])" 2>/dev/null | sed 's/^v//')
           echo "version=$VER" >> $GITHUB_OUTPUT
           echo "📦 后端版本: v${VER}"
 
