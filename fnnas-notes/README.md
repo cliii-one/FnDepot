@@ -1,5 +1,5 @@
 ﻿<div align="center">
-  <img src="fnnas-notes/docs/fnnas-notes.png" alt="贴贴密笺应用海报" width="100%" />
+  <img src="FnStore/fnnas-notes/docs/fnnas-notes.png" alt="贴贴密笺应用海报" width="100%" />
 
   <h1>贴贴密笺</h1>
 
