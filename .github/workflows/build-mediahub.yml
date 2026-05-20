@@ -82,6 +82,12 @@ jobs:
           done
           echo "✅ JavaScript 混淆完成"
 
+      - name: 配置 QEMU
+        if: matrix.arch == 'arm64'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
       # ========== 为 ARM 替换 sharp 原生模块 ==========
       - name: 安装目标架构 sharp 模块
         if: matrix.arch == 'arm64'
