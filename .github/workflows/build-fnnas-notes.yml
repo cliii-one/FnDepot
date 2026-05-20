@@ -74,19 +74,6 @@ jobs:
           flutter build web --release
           echo "✅ Flutter Web 构建完成"
 
-      # ========== 编译 Python 后端为二进制 ==========
-      - name: 编译 Python 后端 (PyInstaller)
-        run: |
-          cd /tmp/fnnas-notes-src/src/backend
-          pip install pyinstaller cryptography
-          # 打包 server.py 为独立二进制，包含所有依赖
-          pyinstaller --onefile --name server \
-            --add-data "handlers:handlers" \
-            --hidden-import cryptography \
-            --hidden-import sqlite3 \
-            server.py
-          echo "✅ Python 后端编译完成: $(ls -lh dist/server)"
-
       # ========== 组装应用文件 ==========
       - name: 组装应用文件
         run: |
@@ -98,12 +85,13 @@ jobs:
           mkdir -p app/ui/images
           cp $GITHUB_WORKSPACE/fnnas-notes/app/ui/images/* app/ui/images/ 2>/dev/null || true
 
-          # 复制编译后的 Python 二进制到 app/server/
+          # 复制 Python 后端到 app/server/
           mkdir -p app/server
-          cp /tmp/fnnas-notes-src/src/backend/dist/server app/server/server
-          chmod +x app/server/server
-          # 复制非 Python 的辅助文件（配置、迁移等）
-          cp /tmp/fnnas-notes-src/src/backend/requirements.txt app/server/ 2>/dev/null || true
+          cp -r /tmp/fnnas-notes-src/src/backend/* app/server/
+          chmod +x app/server/server.py
+
+          # 安装依赖到 app/server/libs/
+          pip install cryptography -t app/server/libs --quiet
           echo "✅ 应用文件组装完成"
 
       # ========== 更新 manifest ==========
