@@ -1,4 +1,4 @@
-﻿#!/bin/bash
+#!/bin/bash
 ### This script is called after the user installs the application.
 
 APP_DIR="${TRIM_APPDEST}"
