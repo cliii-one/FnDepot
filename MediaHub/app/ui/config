@@ -1,0 +1,18 @@
+{
+  ".url": {
+    "OneServer.Application": {
+      "noDisplay": false,
+      "allUsers": true,
+      "fileTypes": [],
+      "control": {
+        "accessPerm": "readonly"
+      },
+      "protocol": "",
+      "title": "One Server",
+      "icon": "images/icon_{0}.png",
+      "type": "iframe",
+      "port": "4120",
+      "url": "/"
+    }
+  }
+}

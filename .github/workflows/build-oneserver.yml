@@ -1,0 +1,190 @@
+name: 构建 OneServer FPK
+
+on:
+  push:
+    tags: ['oneserver-v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号（留空则读取 manifest）'
+        required: false
+        default: ''
+      create_release:
+        description: '创建 GitHub Release'
+        required: false
+        default: 'true'
+        type: choice
+        options: ['true', 'false']
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: 构建 ${{ matrix.arch }}
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            node_arch: x64
+            fnpack_platform: x86
+          - arch: arm64
+            node_arch: arm64
+            fnpack_platform: arm
+    defaults:
+      run:
+        working-directory: OneServer
+
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 配置 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: 确定版本号
+        id: version
+        run: |
+          MANIFEST_VER=$(grep '^version' manifest | awk -F'=' '{print $2}' | tr -d ' ')
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [[ "${{ github.ref }}" == refs/tags/oneserver-v* ]]; then
+            VERSION="${{ github.ref_name }}" && VERSION="${VERSION#oneserver-v}"
+          else
+            VERSION="${MANIFEST_VER}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      # ========== 克隆私有源码 ==========
+      - name: 克隆源码仓库
+        env:
+          PRIVATE_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
+        run: |
+          git clone --depth=1 -b main https://x-access-token:${PRIVATE_TOKEN}@github.com/DinDing1/OneServer.git /tmp/oneserver-src
+          echo "✅ 源码克隆完成"
+
+      # ========== 构建项目 ==========
+      - name: 安装依赖并构建
+        run: |
+          cd /tmp/oneserver-src
+          npm install
+          npm run build
+          echo "✅ 构建完成"
+          ls -la apps/server/dist/ 2>/dev/null || true
+          ls -la apps/www/dist/ 2>/dev/null || true
+
+      # ========== JavaScript 混淆 ==========
+      - name: JavaScript 混淆
+        run: |
+          npm install -g javascript-obfuscator
+          # 混淆服务端代码
+          find /tmp/oneserver-src/apps/server/dist -name "*.js" -not -path "*/node_modules/*" | while read f; do
+            javascript-obfuscator "$f" --output "$f" \
+              --string-array true --string-array-encoding base64 \
+              --control-flow-flattening true --dead-code-injection true \
+              --self-defending false 2>/dev/null || true
+          done
+          echo "✅ JavaScript 混淆完成"
+
+      # ========== 组装应用文件 ==========
+      - name: 组装应用文件
+        run: |
+          # 复制构建产物
+          mkdir -p app/www
+          cp -r /tmp/oneserver-src/apps/server/dist/* app/www/ 2>/dev/null || true
+          cp -r /tmp/oneserver-src/apps/www/dist/* app/www/ 2>/dev/null || true
+
+          # 下载 Node.js 运行时
+          NODE_VER="24.15.0"
+          mkdir -p app/runtime/bin
+          curl -fsSL -o /tmp/node.tar.xz "https://nodejs.org/dist/v${NODE_VER}/node-v${NODE_VER}-linux-${{ matrix.node_arch }}.tar.xz"
+          mkdir -p /tmp/_ne && tar xf /tmp/node.tar.xz -C /tmp/_ne
+          cp /tmp/_ne/node-v${NODE_VER}-linux-${{ matrix.node_arch }}/bin/node app/runtime/bin/node
+          chmod +x app/runtime/bin/node
+          strip app/runtime/bin/node 2>/dev/null || true
+          rm -rf /tmp/_ne /tmp/node.tar.xz
+          echo "✅ 组装完成"
+
+      - name: 更新 manifest
+        run: |
+          sed -i "s/^version.*/version=${{ steps.version.outputs.version }}/" manifest
+          sed -i "s/^platform.*/platform=${{ matrix.fnpack_platform }}/" manifest
+
+      - name: 修复脚本权限
+        run: |
+          for f in cmd/*; do [ -f "$f" ] && sed -i 's/\r$//' "$f" && chmod +x "$f"; done
+
+      - name: 清理 BOM
+        run: |
+          find . -maxdepth 3 -type f \( -name "*.json" -o -name "config" -o -name "manifest" -o -name "privilege" -o -name "resource" -o -name "install" -o -name "uninstall" \) | while read f; do
+            xxd "$f" 2>/dev/null | head -1 | grep -q "efbb bf" && tail -c +4 "$f" > "${f}.tmp" && mv "${f}.tmp" "$f"
+          done
+
+      # ========== 打包 FPK ==========
+      - name: 下载 fnpack 并打包
+        run: |
+          curl -fsSL -o /tmp/fnpack https://static2.fnnas.com/fnpack/fnpack-1.2.1-linux-amd64
+          chmod +x /tmp/fnpack
+          /tmp/fnpack build --directory .
+          if [ "${{ matrix.arch }}" = "x86_64" ]; then
+            mv oneserver.fpk oneserver-X86.fpk
+          else
+            mv oneserver.fpk oneserver-ARM.fpk
+          fi
+
+      - name: 上传 FPK
+        uses: actions/upload-artifact@v4
+        with:
+          name: oneserver-${{ matrix.arch }}
+          path: OneServer/oneserver-*.fpk
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/oneserver-v') || github.event.inputs.create_release == 'true'
+    permissions:
+      contents: write
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+      - name: 下载 FPK
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts/
+      - name: 删除旧版本
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release list --limit 100 --json tagName --jq '.[].tagName' 2>/dev/null | while read tag; do
+            case "$tag" in oneserver-*) gh release delete "$tag" --yes --cleanup-tag 2>/dev/null || true;; esac
+          done
+      - name: 确定构建信息
+        id: info
+        run: |
+          MANIFEST_VER=$(grep '^version' OneServer/manifest | awk -F'=' '{print $2}' | tr -d ' ')
+          if [[ "${{ github.ref }}" == refs/tags/oneserver-v* ]]; then
+            TAG="${{ github.ref_name }}" && VERSION="${TAG#oneserver-v}"
+          else
+            TAG="oneserver-v${MANIFEST_VER}" && VERSION="${MANIFEST_VER}"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "build_time=$(TZ=Asia/Shanghai date '+%Y-%m-%d %H:%M CST')" >> $GITHUB_OUTPUT
+      - name: 创建 Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.info.outputs.tag }}
+          name: "OneServer ${{ steps.info.outputs.version }}"
+          files: ./artifacts/**/*.fpk
+          body: |
+            ## OneServer v${{ steps.info.outputs.version }}
+
+            面向飞牛 NAS 的 MacOS 风格 SSH 终端管理工具。
+
+            | 文件 | 架构 |
+            |------|------|
+            | `oneserver-X86.fpk` | x86_64 |
+            | `oneserver-ARM.fpk` | arm64 |
+
+            ---
+            构建时间：${{ steps.info.outputs.build_time }}

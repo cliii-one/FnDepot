@@ -1,0 +1,134 @@
+#!/bin/bash
+
+APP_ROOT="${TRIM_APPDEST:-$(cd "$(dirname "$0")/.." && pwd)}"
+NODE_BIN="${APP_ROOT}/runtime/bin/node"
+DATA_DIR="${TRIM_PKGVAR:-${APP_ROOT}/data}"
+LOG_DIR="${DATA_DIR}/runtime"
+LOG_FILE="${LOG_DIR}/info.log"
+PID_FILE="${DATA_DIR}/app.pid"
+APP_PORT="${TRIM_SERVICE_PORT:-4120}"
+
+log_msg() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "${LOG_FILE}"
+}
+
+write_user_error() {
+    if [ -n "${TRIM_TEMP_LOGFILE}" ]; then
+        echo "$1" > "${TRIM_TEMP_LOGFILE}"
+    fi
+}
+
+resolve_app_entry() {
+    if [ -f "${APP_ROOT}/server/dist/index.js" ]; then
+        APP_ENTRY="${APP_ROOT}/server/dist/index.js"
+        return 0
+    fi
+
+    return 1
+}
+
+check_process() {
+    local pid=$1
+    if kill -0 "${pid}" 2>/dev/null; then
+        return 0
+    fi
+
+    return 1
+}
+
+status() {
+    if [ -f "${PID_FILE}" ]; then
+        pid=$(head -n 1 "${PID_FILE}" | tr -d '[:space:]')
+        if check_process "${pid}"; then
+            return 0
+        fi
+        rm -f "${PID_FILE}"
+    fi
+
+    return 1
+}
+
+start_process() {
+    mkdir -p "${DATA_DIR}"
+    mkdir -p "${LOG_DIR}"
+
+    if status; then
+        log_msg "Process already running."
+        return 0
+    fi
+
+    if ! resolve_app_entry; then
+        log_msg "Missing app entry: ${APP_ROOT}/server/dist/index.js"
+        write_user_error "应用启动失败：未找到服务端入口文件。"
+        return 1
+    fi
+
+    if ! [ -x "${NODE_BIN}" ]; then
+        log_msg "Node binary not found or not executable: ${NODE_BIN}"
+        write_user_error "应用启动失败：未找到内置 Node.js 运行时。"
+        return 1
+    fi
+
+    log_msg "Resolved app root: ${APP_ROOT}"
+    log_msg "Resolved data dir: ${DATA_DIR}"
+    log_msg "Resolved app entry: ${APP_ENTRY}"
+    log_msg "Starting One Server..."
+
+    (
+        cd "${APP_ROOT}" || exit 1
+        export PORT="${APP_PORT}"
+        export NODE_ENV=production
+        export TRIM_PKGVAR="${DATA_DIR}"
+        exec -a "OneServer" "${NODE_BIN}" "${APP_ENTRY}"
+    ) >> "${LOG_FILE}" 2>&1 &
+
+    printf "%s" "$!" > "${PID_FILE}"
+    return 0
+}
+
+stop_process() {
+    log_msg "Stopping One Server..."
+
+    if [ -r "${PID_FILE}" ]; then
+        pid=$(head -n 1 "${PID_FILE}" | tr -d '[:space:]')
+
+        if ! check_process "${pid}"; then
+            rm -f "${PID_FILE}"
+            return 0
+        fi
+
+        kill -TERM "${pid}" >> "${LOG_FILE}" 2>&1
+
+        count=0
+        while check_process "${pid}" && [ ${count} -lt 10 ]; do
+            sleep 1
+            count=$((count + 1))
+        done
+
+        if check_process "${pid}"; then
+            kill -KILL "${pid}" >> "${LOG_FILE}" 2>&1
+        fi
+
+        rm -f "${PID_FILE}"
+    fi
+
+    return 0
+}
+
+case "$1" in
+start)
+    start_process
+    ;;
+stop)
+    stop_process
+    ;;
+status)
+    if status; then
+        exit 0
+    fi
+    exit 3
+    ;;
+*)
+    exit 1
+    ;;
+esac

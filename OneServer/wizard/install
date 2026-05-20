@@ -1,0 +1,26 @@
+[
+  {
+    "stepTitle": "安装前确认",
+    "items": [
+      {
+        "type": "tips",
+        "helpText": "欢迎使用 One Server。该应用为第三方 SSH 终端工具，并非飞牛官方出品应用。"
+      },
+      {
+        "type": "tips",
+        "helpText": "安装并使用本应用即表示您理解：需要自行妥善保管目标主机凭据，仅应在可信网络与可信设备中使用，并自行承担由 SSH 连接、网络暴露或误操作带来的风险。应用数据将保存在当前应用的数据目录中。"
+      },
+      {
+        "type": "switch",
+        "field": "wizard_accept_disclaimer",
+        "label": "我已阅读并同意上述免责声明",
+        "rules": [
+          {
+            "required": true,
+            "message": "请先确认免责声明后再继续安装"
+          }
+        ]
+      }
+    ]
+  }
+]

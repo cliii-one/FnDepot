@@ -9,6 +9,8 @@
 | [ClashLite](ClashLite/) | 基于 mihomo 内核的代理管理应用 | `clashlite-v*` |
 | [SubStore](SubStore/) | 基于 Sub-Store 的订阅管理应用 | `substore-v*` |
 | [fnnas-notes](fnnas-notes/) | 贴贴密笺 - 轻量安全的本地便签应用 | `fnnas-notes-v*` |
+| [MediaHub](MediaHub/) | Emby + 115 云盘一站式媒体管理面板 | `mediahub-v*` |
+| [OneServer](OneServer/) | 飞牛 NAS SSH 终端管理工具 | `oneserver-v*` |
 
 ## 构建
 

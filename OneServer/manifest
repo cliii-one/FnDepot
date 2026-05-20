@@ -1,0 +1,16 @@
+appname=OneServer
+version=1.0.0
+display_name=One Server
+desc=一个同时适配桌面端、手机端、fnOS iframe的轻量SSH管理与终端应用；聚焦 好看、好用、好维护的NAS端SSH体验
+platform=all
+source=thirdparty
+maintainer=本尊
+maintainer_url=https://github.com/DinDing1/FnDepot
+distributor=本尊
+distributor_url=https://github.com/DinDing1/FnDepot
+os_min_version=1.1.8
+ctl_stop=true
+desktop_uidir=ui
+desktop_applaunchname=OneServer.Application
+service_port=4120
+checkport=true

@@ -1,0 +1,69 @@
+#!/bin/bash
+
+DATA_ACTION="${wizard_data_action:-keep}"
+APPNAME="OneServer"
+
+resolve_volume() {
+    local source_path="$1"
+
+    if [ -z "${source_path}" ]; then
+        return 0
+    fi
+
+    printf '%s\n' "${source_path}" | sed -n 's|^/vol\([0-9][0-9]*\)/.*|\1|p' | head -n 1
+}
+
+is_safe_dir() {
+    local dir="$1"
+
+    case "${dir}" in
+        ""|"/"|"/vol"*"/@appconf"|"/vol"*"/@apphome"|"/vol"*"/@appcenter"|"/vol"*"/@apptemp"|"/vol"*"/@appdata")
+            return 1
+            ;;
+        "/vol"*/@appconf/${APPNAME}|"/vol"*/@apphome/${APPNAME}|"/vol"*/@appcenter/${APPNAME}|"/vol"*/@apptemp/${APPNAME}|"/vol"*/@appdata/${APPNAME})
+            return 0
+            ;;
+    esac
+
+    if [ -n "${TRIM_PKGVAR}" ] && [ "${dir}" = "${TRIM_PKGVAR}" ]; then
+        case "${dir}" in
+            */${APPNAME})
+                return 0
+                ;;
+        esac
+    fi
+
+    return 1
+}
+
+if [ "${DATA_ACTION}" = "delete" ]; then
+    VOL="$(resolve_volume "${TRIM_PKGVAR}")"
+
+    if [ -z "${VOL}" ]; then
+        VOL="$(resolve_volume "${TRIM_APPDEST}")"
+    fi
+
+    DIRS_TO_REMOVE=()
+
+    if [ -n "${VOL}" ]; then
+        DIRS_TO_REMOVE+=(
+            "/vol${VOL}/@appconf/${APPNAME}"
+            "/vol${VOL}/@apphome/${APPNAME}"
+            "/vol${VOL}/@appcenter/${APPNAME}"
+            "/vol${VOL}/@apptemp/${APPNAME}"
+            "/vol${VOL}/@appdata/${APPNAME}"
+        )
+    fi
+
+    if [ -n "${TRIM_PKGVAR}" ]; then
+        DIRS_TO_REMOVE+=("${TRIM_PKGVAR}")
+    fi
+
+    for dir in "${DIRS_TO_REMOVE[@]}"; do
+        if is_safe_dir "${dir}" && [ -e "${dir}" ]; then
+            rm -rf "${dir}"
+        fi
+    done
+fi
+
+exit 0
