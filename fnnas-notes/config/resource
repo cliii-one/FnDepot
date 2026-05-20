@@ -1,0 +1,12 @@
+{
+  "data-share": {
+    "shares": [
+      {
+        "name": "fnnas.notes",
+        "permission": {
+          "rw": ["fnnas.notes"]
+        }
+      }
+    ]
+  }
+}

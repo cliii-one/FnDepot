@@ -1,0 +1,37 @@
+﻿[
+    {
+        "stepTitle": "欢迎安装",
+        "description": "欢迎使用贴贴密笺！安装前请阅读以下信息：",
+        "items": [
+            {
+                "type": "tips",
+                "helpText": "<strong>贴贴密笺</strong> 是一款简洁优雅的便签备忘录应用，支持便签创建、分类管理、Markdown 编辑、全文搜索、回收站、数据导入导出等功能。"
+            },
+            {
+                "type": "tips",
+                "helpText": "<strong>数据说明：</strong>所有便签数据存储在 NAS 本地 SQLite 数据库中，不会上传到任何外部服务器。卸载时可选择保留数据，方便日后重新安装恢复。"
+            },
+            {
+                "type": "tips",
+                "helpText": "<strong>系统要求：</strong>FnNAS 1.1.31+。"
+            },
+            {
+                "type": "checkbox",
+                "field": "wizard_agree",
+                "label": "我已阅读并同意",
+                "options": [
+                    {
+                        "label": "我已了解以上信息，确认安装",
+                        "value": "agree"
+                    }
+                ],
+                "rules": [
+                    {
+                        "required": true,
+                        "message": "请确认已阅读以上信息"
+                    }
+                ]
+            }
+        ]
+    }
+]

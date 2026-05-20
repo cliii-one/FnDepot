@@ -1,0 +1,13 @@
+﻿#!/bin/bash
+### This script is called after the user upgrades the application.
+
+APP_DIR="${TRIM_APPDEST}"
+
+chmod +x "${APP_DIR}/server/server.py" 2>/dev/null
+# 兼容部分环境会将 cmd 复制到安装目录的情况；路径不存在时忽略。
+chmod +x "${APP_DIR}/cmd/"* 2>/dev/null
+
+mkdir -p "${TRIM_PKGVAR}/data"
+
+echo "贴贴密笺升级完成"
+exit 0

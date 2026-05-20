@@ -1,0 +1,14 @@
+﻿{
+  ".url": {
+    "fnnas.notes.Application": {
+      "title": "贴贴密笺",
+      "icon": "images/icon-{0}.png",
+      "type": "iframe",
+      "protocol": "",
+      "gatewaySocket": "fnnas-notes.sock",
+      "gatewayPrefix": "/app/fnnas-notes",
+      "url": "/app/fnnas-notes",
+      "allUsers": true
+    }
+  }
+}

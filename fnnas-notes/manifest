@@ -1,0 +1,27 @@
+﻿appname=fnnas.notes
+version=1.0.2
+display_name=贴贴密笺
+desc="""
+<b>贴贴密笺</b> 是一款轻量、安全的本地便签工具。专注高效记录，守护你的数据主权。<br/><br/>
+<b>⚡ 核心功能</b><br/><br/>
+📝 <b>Markdown 编辑</b> — 实时预览，所见即所得<br/>
+🏷️ <b>分类与标签</b> — 多级分类、灵活标签，全局搜索更高效<br/>
+🔄 <b>多视图切换</b> — 网格、列表、看板，自由选择浏览方式<br/>
+📌 <b>置顶与回收站</b> — 便签排序、软删除保护，误删可恢复<br/>
+📜 <b>版本历史</b> — 记录每一次修改，支持对比与一键回滚<br/>
+⏰ <b>定时提醒</b> — 重要事项设置提醒，通知中心集中管理<br/>
+📤 <b>分享与统计</b> — 生成分享链接，查看访问数据<br/>
+🔒 <b>隐私安全</b> — AES-256-GCM 内容加密与密码校验，敏感信息仅你可见<br/>
+📦 <b>数据迁移</b> — 导入导出自如，数据备份与恢复，所有权始终归你<br/>
+💾 <b>本地存储</b> — 基于 SQLite，数据默认不上传外部服务器，守护隐私<br/>
+<img width="100%" height="auto" src="https://raw.githubusercontent.com/cliii-one/FnStore/master/fnnas-notes/doc/fnnas-notes.png" alt="贴贴密笺截图" style="margin-top:0.3em;">
+"""
+platform=all
+source=thirdparty
+maintainer=cliii_one
+distributor=cliii_one
+os_min_version=1.1.31
+desktop_uidir=ui
+desktop_applaunchname=fnnas.notes.Application
+ctl_stop=true
+disable_authorization_path=false

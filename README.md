@@ -8,6 +8,7 @@
 |------|------|------|
 | [ClashLite](ClashLite/) | 基于 mihomo 内核的代理管理应用 | `clashlite-v*` |
 | [SubStore](SubStore/) | 基于 Sub-Store 的订阅管理应用 | `substore-v*` |
+| [fnnas-notes](fnnas-notes/) | 贴贴密笺 - 轻量安全的本地便签应用 | `fnnas-notes-v*` |
 
 ## 构建
 
