@@ -6,6 +6,7 @@ platform              = arm
 source                = thirdparty
 maintainer            = cliii-one
 distributor           = cliii-one
+distributor_url       =https://github.com/cliii-one/FnStore
 os_min_version        = 1.1.8
 desktop_uidir         = ui
 desktop_applaunchname = clashlite.Application
