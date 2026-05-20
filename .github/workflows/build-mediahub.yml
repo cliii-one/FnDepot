@@ -60,10 +60,9 @@ jobs:
         env:
           PRIVATE_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
         run: |
-          git clone --depth=1 -b main https://x-access-token:${PRIVATE_TOKEN}@github.com/DinDing1/MediaHub.git /tmp/mediahub-src
-          echo "✅ 源码克隆完成"
+          git clone --depth=1 https://x-access-token:${PRIVATE_TOKEN}@github.com/DinDing1/MediaHub.git /tmp/mediahub-src
 
-      # ========== 构建项目 ==========
+      # ========== 构建项目（对齐原始 workflow） ==========
       - name: 安装依赖并构建
         run: |
           cd /tmp/mediahub-src
@@ -71,30 +70,16 @@ jobs:
           npm run build
           echo "✅ 构建完成"
 
-      # ========== JavaScript 混淆 ==========
-      - name: JavaScript 混淆
-        run: |
-          npm install -g javascript-obfuscator
-          # 混淆服务端代码
-          find /tmp/mediahub-src/.output/server -name "*.js" -not -path "*/node_modules/*" | while read f; do
-            javascript-obfuscator "$f" --output "$f" \
-              --string-array true --string-array-encoding base64 \
-              --control-flow-flattening true --dead-code-injection true \
-              --self-defending false 2>/dev/null || true
-          done
-          echo "✅ JavaScript 混淆完成"
-
-      # ========== 组装应用文件 ==========
+      # ========== 组装应用文件（对齐原始 workflow） ==========
       - name: 组装应用文件
         run: |
-          # Nuxt Nitro 服务端 → app/server/dist/
-          mkdir -p app/server/dist
-          cp -r /tmp/mediahub-src/.output/server/* app/server/dist/
-          # 前端静态文件 → app/server/dist/public/
-          mkdir -p app/server/dist/public
-          cp -r /tmp/mediahub-src/.output/public/* app/server/dist/public/
+          # Nuxt Nitro 服务端 + 前端静态文件 → app/www/
+          mkdir -p app/www
+          cp -r /tmp/mediahub-src/.output/server app/www/
+          cp -r /tmp/mediahub-src/.output/public app/www/
 
-          # Node.js 运行时 → app/runtime/bin/node
+      - name: 下载 Node.js 运行时
+        run: |
           NODE_VER="24.15.0"
           mkdir -p app/runtime/bin
           curl -fsSL -o /tmp/node.tar.xz "https://nodejs.org/dist/v${NODE_VER}/node-v${NODE_VER}-linux-${{ matrix.node_arch }}.tar.xz"
@@ -103,7 +88,6 @@ jobs:
           chmod +x app/runtime/bin/node
           strip app/runtime/bin/node 2>/dev/null || true
           rm -rf /tmp/_ne /tmp/node.tar.xz
-          echo "✅ 组装完成"
 
       - name: 更新 manifest
         run: |
@@ -114,10 +98,9 @@ jobs:
         run: |
           for f in cmd/*; do [ -f "$f" ] && sed -i 's/\r$//' "$f" && chmod +x "$f"; done
 
-      # ========== BOM 清理 ==========
       - name: 清理 BOM
         run: |
-          find . -maxdepth 3 -type f \( -name "*.json" -o -name "config" -o -name "manifest" -o -name "privilege" -o -name "resource" -o -name "install" -o -name "uninstall" \) | while read f; do
+          find . -maxdepth 3 -type f | while read f; do
             xxd "$f" 2>/dev/null | head -1 | grep -q "efbb bf" && tail -c +4 "$f" > "${f}.tmp" && mv "${f}.tmp" "$f" || true
           done
 

@@ -6,7 +6,7 @@ DATA_DIR="${TRIM_PKGVAR:-${APP_ROOT}/data}"
 LOG_DIR="${DATA_DIR}/runtime"
 LOG_FILE="${LOG_DIR}/info.log"
 PID_FILE="${DATA_DIR}/app.pid"
-APP_PORT="${TRIM_SERVICE_PORT:-4120}"
+APP_PORT="${TRIM_SERVICE_PORT:-3030}"
 
 log_msg() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "${LOG_FILE}"
@@ -19,12 +19,13 @@ write_user_error() {
 }
 
 resolve_app_entry() {
-    if [ -f "${APP_ROOT}/server/dist/index.mjs" ]; then
-        APP_ENTRY="${APP_ROOT}/server/dist/index.mjs"
+    # Nuxt Nitro 输出入口（原始 workflow 放在 app/www/server/）
+    if [ -f "${APP_ROOT}/www/server/index.mjs" ]; then
+        APP_ENTRY="${APP_ROOT}/www/server/index.mjs"
         return 0
     fi
-    if [ -f "${APP_ROOT}/server/dist/index.js" ]; then
-        APP_ENTRY="${APP_ROOT}/server/dist/index.js"
+    if [ -f "${APP_ROOT}/www/server/index.js" ]; then
+        APP_ENTRY="${APP_ROOT}/www/server/index.js"
         return 0
     fi
     return 1
@@ -35,7 +36,6 @@ check_process() {
     if kill -0 "${pid}" 2>/dev/null; then
         return 0
     fi
-
     return 1
 }
 
@@ -47,7 +47,6 @@ status() {
         fi
         rm -f "${PID_FILE}"
     fi
-
     return 1
 }
 
@@ -61,7 +60,7 @@ start_process() {
     fi
 
     if ! resolve_app_entry; then
-        log_msg "Missing app entry: ${APP_ROOT}/server/dist/index.js"
+        log_msg "Missing app entry: ${APP_ROOT}/www/server/index.mjs"
         write_user_error "应用启动失败：未找到服务端入口文件。"
         return 1
     fi
@@ -75,14 +74,16 @@ start_process() {
     log_msg "Resolved app root: ${APP_ROOT}"
     log_msg "Resolved data dir: ${DATA_DIR}"
     log_msg "Resolved app entry: ${APP_ENTRY}"
-    log_msg "Starting One Server..."
+    log_msg "Starting MediaHub..."
 
     (
         cd "${APP_ROOT}" || exit 1
         export PORT="${APP_PORT}"
+        export HOST="::"
         export NODE_ENV=production
+        export NITRO_PORT="${APP_PORT}"
         export TRIM_PKGVAR="${DATA_DIR}"
-        exec -a "OneServer" "${NODE_BIN}" "${APP_ENTRY}"
+        exec -a "MediaHub" "${NODE_BIN}" "${APP_ENTRY}"
     ) >> "${LOG_FILE}" 2>&1 &
 
     printf "%s" "$!" > "${PID_FILE}"
@@ -90,7 +91,7 @@ start_process() {
 }
 
 stop_process() {
-    log_msg "Stopping One Server..."
+    log_msg "Stopping MediaHub..."
 
     if [ -r "${PID_FILE}" ]; then
         pid=$(head -n 1 "${PID_FILE}" | tr -d '[:space:]')
