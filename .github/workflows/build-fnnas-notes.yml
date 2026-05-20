@@ -74,18 +74,20 @@ jobs:
           flutter build web --release
           echo "✅ Flutter Web 构建完成"
 
-      # ========== 编译 Python 后端为二进制 ==========
-      - name: 编译 Python 后端 (PyInstaller)
+      # ========== 编译 Python 后端为二进制 (Nuitka) ==========
+      - name: 编译 Python 后端 (Nuitka)
         run: |
           cd /tmp/fnnas-notes-src/src/backend
-          pip install pyinstaller cryptography
-          pyinstaller --onedir --name server \
-            --add-data "handlers:handlers" \
-            --hidden-import cryptography \
-            --hidden-import sqlite3 \
+          pip install nuitka cryptography ordered-set
+          python -m nuitka --standalone --onefile \
+            --include-package=handlers \
+            --include-module=cryptography \
+            --include-module=sqlite3 \
+            --output-filename=server \
+            --output-dir=/tmp/nuitka-out \
             server.py
           echo "✅ Python 后端编译完成"
-          ls -lh dist/server/
+          ls -lh /tmp/nuitka-out/server
 
       # ========== 组装应用文件 ==========
       - name: 组装应用文件
@@ -97,9 +99,9 @@ jobs:
           mkdir -p app/ui/images
           cp $GITHUB_WORKSPACE/fnnas-notes/app/ui/images/* app/ui/images/ 2>/dev/null || true
 
-          # PyInstaller 编译产物 → app/server/
+          # Nuitka 编译产物 → app/server/
           mkdir -p app/server
-          cp -r /tmp/fnnas-notes-src/src/backend/dist/server/* app/server/
+          cp /tmp/nuitka-out/server app/server/server
           chmod +x app/server/server
           echo "✅ 应用文件组装完成"
 
