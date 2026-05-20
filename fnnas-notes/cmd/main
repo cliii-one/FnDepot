@@ -19,7 +19,7 @@ start_process() {
         return 0
     fi
     log_msg "Starting process ..."
-    PYTHONPATH="${APP_DIR}/server/libs:${PYTHONPATH:-}" python3 "${APP_DIR}/server/server.py" >> "${LOG_FILE}" 2>&1 &
+    "${APP_DIR}/server/server" --static-dir "${APP_DIR}/ui" >> "${LOG_FILE}" 2>&1 &
     printf "%s" "$!" > "${PID_FILE}"
     log_msg "Started with PID $!"
     return 0
