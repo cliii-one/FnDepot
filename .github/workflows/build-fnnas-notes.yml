@@ -159,11 +159,7 @@ jobs:
           curl -fsSL -o /tmp/fnpack https://static2.fnnas.com/fnpack/fnpack-1.2.1-linux-amd64
           chmod +x /tmp/fnpack
           /tmp/fnpack build --directory .
-          if [ "${{ matrix.arch }}" = "x86_64" ]; then
-            mv fnnas.notes.fpk fnnas-notes-X86.fpk
-          else
-            mv fnnas.notes.fpk fnnas-notes-ARM.fpk
-          fi
+          FPKN=$(ls *.fpk) && mv "$FPKN" fnnas-notes-${{ matrix.arch == 'x86_64' && 'X86' || 'ARM' }}.fpk
           echo "✅ 构建完成: $(ls -lh *.fpk)"
 
       # ========== 上传产物 ==========

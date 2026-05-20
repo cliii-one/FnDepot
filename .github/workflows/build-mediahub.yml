@@ -125,11 +125,7 @@ jobs:
           curl -fsSL -o /tmp/fnpack https://static2.fnnas.com/fnpack/fnpack-1.2.1-linux-amd64
           chmod +x /tmp/fnpack
           /tmp/fnpack build --directory .
-          if [ "${{ matrix.arch }}" = "x86_64" ]; then
-            mv mediahub.fpk mediahub-X86.fpk
-          else
-            mv mediahub.fpk mediahub-ARM.fpk
-          fi
+          FPKN=$(ls *.fpk) && mv "$FPKN" mediahub-${{ matrix.arch == 'x86_64' && 'X86' || 'ARM' }}.fpk
 
       - name: 上传 FPK
         uses: actions/upload-artifact@v4
