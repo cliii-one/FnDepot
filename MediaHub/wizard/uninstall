@@ -4,11 +4,7 @@
     "items": [
       {
         "type": "tips",
-        "field": "wizard_default",
-        "label": "说明",
-        "rules": [],
-        "options": [],
-        "helpText": "您即将卸载 One Server。默认仅卸载应用本体，保留已保存的主机配置、应用设置和运行日志。"
+        "helpText": "您即将卸载 MediaHub。默认仅卸载应用本体，保留应用配置和数据。"
       },
       {
         "type": "radio",
@@ -34,11 +30,7 @@
       },
       {
         "type": "tips",
-        "field": "wizard_default",
-        "label": "警告",
-        "rules": [],
-        "options": [],
-        "helpText": "<strong>警告：</strong> 选择删除所有配置与数据后，主机配置、密钥库元数据和运行日志将被永久清空，无法恢复。"
+        "helpText": "<strong>警告：</strong> 选择删除所有配置与数据后，应用数据将被永久清空，无法恢复。"
       }
     ]
   }

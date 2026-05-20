@@ -24,11 +24,14 @@ jobs:
       matrix:
         include:
           - arch: x86_64
-            node_arch: x64
+            runner: ubuntu-latest
             fnpack_platform: x86
+            fnpack: fnpack-1.2.1-linux-amd64
           - arch: arm64
-            node_arch: arm64
+            runner: ubuntu-24.04-arm
             fnpack_platform: arm
+            fnpack: fnpack-1.2.1-linux-arm64
+    runs-on: ${{ matrix.runner }}
     defaults:
       run:
         working-directory: MediaHub
@@ -82,20 +85,6 @@ jobs:
           done
           echo "✅ JavaScript 混淆完成"
 
-      # ========== 为 ARM 替换 sharp 原生模块 ==========
-      - name: 安装目标架构 sharp 模块
-        if: matrix.arch == 'arm64'
-        run: |
-          echo "为 ARM 架构安装 sharp..."
-          SHARP_DIR="/tmp/mediahub-src/.output/server/node_modules/sharp"
-          # 删除 x86 sharp 原生二进制
-          rm -rf "${SHARP_DIR}/vendor"
-          rm -rf /tmp/mediahub-src/.output/server/node_modules/@img/sharp-linux-x64
-          # 安装 ARM sharp 原生包
-          cd /tmp/mediahub-src/.output/server
-          npm install @img/sharp-linux-arm64 --no-save 2>/dev/null || true
-          echo "✅ ARM sharp 安装完成"
-
       # ========== 组装应用文件（对齐原始 workflow） ==========
       - name: 组装应用文件
         run: |
@@ -133,7 +122,7 @@ jobs:
       # ========== 打包 FPK ==========
       - name: 下载 fnpack 并打包
         run: |
-          curl -fsSL -o /tmp/fnpack https://static2.fnnas.com/fnpack/fnpack-1.2.1-linux-amd64
+          curl -fsSL -o /tmp/fnpack "https://static2.fnnas.com/fnpack/${{ matrix.fnpack }}"
           chmod +x /tmp/fnpack
           /tmp/fnpack build --directory .
           FPKN=$(ls *.fpk) && mv "$FPKN" mediahub-${{ matrix.arch == 'x86_64' && 'X86' || 'ARM' }}.fpk

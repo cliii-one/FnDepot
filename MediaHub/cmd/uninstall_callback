@@ -1,7 +1,7 @@
 #!/bin/bash
 
 DATA_ACTION="${wizard_data_action:-keep}"
-APPNAME="OneServer"
+APPNAME="mediahub"
 
 resolve_volume() {
     local source_path="$1"
