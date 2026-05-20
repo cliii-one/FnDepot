@@ -82,6 +82,25 @@ jobs:
           done
           echo "✅ JavaScript 混淆完成"
 
+      # ========== 为 ARM 替换 sharp 原生模块 ==========
+      - name: 安装目标架构 sharp 模块
+        if: matrix.arch == 'arm64'
+        run: |
+          echo "为 ARM 架构安装 sharp..."
+          mkdir -p /tmp/sharp-arm
+          docker run --rm --platform linux/arm64 \
+            -v /tmp/sharp-arm:/output \
+            node:24-slim \
+            bash -c "
+              cd /tmp && npm init -y > /dev/null 2>&1 &&
+              npm install sharp --os=linux --cpu=arm64 &&
+              cp -r node_modules/sharp /output/
+            "
+          # 替换 x86 sharp 为 ARM 版本
+          rm -rf /tmp/mediahub-src/.output/server/node_modules/sharp
+          cp -r /tmp/sharp-arm/sharp /tmp/mediahub-src/.output/server/node_modules/
+          echo "✅ ARM sharp 安装完成"
+
       # ========== 组装应用文件（对齐原始 workflow） ==========
       - name: 组装应用文件
         run: |
