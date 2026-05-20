@@ -1,15 +1,40 @@
 [
-  {
-    "stepTitle": "安装前确认",
-    "items": [
-      {
-        "type": "tips",
-        "helpText": "欢迎使用 MediaHub。该应用为 Emby、115 云盘与飞牛 NAS 打造的一站式媒体管理面板。"
-      },
-      {
-        "type": "tips",
-        "helpText": "安装并使用本应用即表示您理解：应用数据将保存在当前应用的数据目录中，MediaHub 会连接 Emby、115 等第三方服务，请确保相关服务配置正确。"
-      }
-    ]
-  }
+    {
+        "stepTitle": "欢迎安装",
+        "items": [
+            {
+                "type": "tips",
+                "helpText": "欢迎使用 MediaHub！这是一个媒体库管理工具，支持云盘整理、自动重命名、Telegram通知等功能。"
+            }
+        ]
+    },
+    {
+        "stepTitle": "媒体目录配置",
+        "items": [
+            {
+                "type": "tips",
+                "helpText": "MediaHub 会创建 STRM 文件供 Emby/Jellyfin 等媒体服务器使用。"
+            },
+            {
+                "type": "text",
+                "field": "wizard_media_path",
+                "label": "媒体目录路径",
+                "placeholder": "请输入媒体目录路径，如：/vol1/1000/media",
+                "rules": [
+                    {
+                        "required": true,
+                        "message": "请输入媒体目录路径"
+                    },
+                    {
+                        "pattern": "^/vol[0-9]+/.*",
+                        "message": "路径必须以 /vol 开头，如 /vol1/1000/media"
+                    }
+                ]
+            },
+            {
+                "type": "tips",
+                "helpText": "该目录将用于存放 STRM 文件，其他应用（如 Emby/Jellyfin）可以读取此目录。"
+            }
+        ]
+    }
 ]

@@ -1,18 +1,18 @@
 {
-  ".url": {
-    "mediahub.Application": {
-      "noDisplay": false,
-      "allUsers": true,
-      "fileTypes": [],
-      "control": {
-        "accessPerm": "readonly"
-      },
-      "protocol": "",
-      "title": "MediaHub",
-      "icon": "images/icon_{0}.png",
-      "type": "iframe",
-      "port": "3030",
-      "url": "/"
+    ".url": {
+        "mediahub.Application": {
+            "noDisplay": false,
+            "allUsers": true,
+            "fileTypes": [],
+            "control": {
+                "accessPerm": "readonly"
+            },
+            "protocol": "",
+            "title": "MediaHub",
+            "icon": "images/icon-{0}.png",
+            "type": "iframe",
+            "port": "3030",
+            "url": "/"
+        }
     }
-  }
 }

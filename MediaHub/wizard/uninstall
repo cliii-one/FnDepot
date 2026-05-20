@@ -1,28 +1,32 @@
 [
   {
-    "stepTitle": "卸载确认",
+    "stepTitle": "确认卸载",
     "items": [
       {
         "type": "tips",
-        "helpText": "您即将卸载 MediaHub。默认仅卸载应用本体，保留应用配置和数据。"
+        "field": "wizard_default",
+        "label": "示例项",
+        "rules": [],
+        "options": [],
+        "helpText": "您即将卸载此应用。请选择如何处理应用数据："
       },
       {
         "type": "radio",
         "field": "wizard_data_action",
-        "label": "数据处理方式",
+        "label": "数据保留选项",
         "rules": [
           {
             "required": true,
-            "message": "请选择数据处理方式"
+            "message": "请选择数据保留选项"
           }
         ],
         "options": [
           {
-            "label": "保留数据（推荐）",
+            "label": "保留数据（推荐）- 将来重新安装时可恢复",
             "value": "keep"
           },
           {
-            "label": "删除所有配置与数据",
+            "label": "删除所有数据 - 此操作不可恢复！",
             "value": "delete"
           }
         ],
@@ -30,7 +34,11 @@
       },
       {
         "type": "tips",
-        "helpText": "<strong>警告：</strong> 选择删除所有配置与数据后，应用数据将被永久清空，无法恢复。"
+        "field": "wizard_default",
+        "label": "示例项",
+        "rules": [],
+        "options": [],
+        "helpText": "<strong>警告：</strong> 选择删除数据后，所有应用数据将永久丢失，无法恢复。"
       }
     ]
   }

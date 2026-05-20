@@ -3,10 +3,10 @@
 APP_ROOT="${TRIM_APPDEST:-$(cd "$(dirname "$0")/.." && pwd)}"
 NODE_BIN="${APP_ROOT}/runtime/bin/node"
 DATA_DIR="${TRIM_PKGVAR:-${APP_ROOT}/data}"
-LOG_DIR="${DATA_DIR}/runtime"
-LOG_FILE="${LOG_DIR}/info.log"
 PID_FILE="${DATA_DIR}/app.pid"
-APP_PORT="${TRIM_SERVICE_PORT:-3030}"
+LOG_DIR="${DATA_DIR}/logs"
+LOG_FILE="${LOG_DIR}/app.log"
+MEDIA_PATH_FILE="${DATA_DIR}/data/media_path.conf"
 
 log_msg() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "${LOG_FILE}"
@@ -18,25 +18,18 @@ write_user_error() {
     fi
 }
 
-resolve_app_entry() {
-    # Nuxt Nitro 输出入口（原始 workflow 放在 app/www/server/）
-    if [ -f "${APP_ROOT}/www/server/index.mjs" ]; then
-        APP_ENTRY="${APP_ROOT}/www/server/index.mjs"
-        return 0
-    fi
-    if [ -f "${APP_ROOT}/www/server/index.js" ]; then
-        APP_ENTRY="${APP_ROOT}/www/server/index.js"
-        return 0
-    fi
-    return 1
-}
+MEDIA_PATH=""
+if [ -f "${MEDIA_PATH_FILE}" ]; then
+    MEDIA_PATH=$(cat "${MEDIA_PATH_FILE}" | tr -d '[:space:]')
+fi
 
 check_process() {
     local pid=$1
     if kill -0 "${pid}" 2>/dev/null; then
         return 0
+    else
+        return 1
     fi
-    return 1
 }
 
 status() {
@@ -47,22 +40,17 @@ status() {
         fi
         rm -f "${PID_FILE}"
     fi
+
     return 1
 }
 
 start_process() {
-    mkdir -p "${DATA_DIR}"
+    mkdir -p "${DATA_DIR}/data"
     mkdir -p "${LOG_DIR}"
 
     if status; then
         log_msg "Process already running."
         return 0
-    fi
-
-    if ! resolve_app_entry; then
-        log_msg "Missing app entry: ${APP_ROOT}/www/server/index.mjs"
-        write_user_error "应用启动失败：未找到服务端入口文件。"
-        return 1
     fi
 
     if ! [ -x "${NODE_BIN}" ]; then
@@ -73,17 +61,17 @@ start_process() {
 
     log_msg "Resolved app root: ${APP_ROOT}"
     log_msg "Resolved data dir: ${DATA_DIR}"
-    log_msg "Resolved app entry: ${APP_ENTRY}"
     log_msg "Starting MediaHub..."
 
     (
-        cd "${APP_ROOT}" || exit 1
-        export PORT="${APP_PORT}"
-        export HOST="::"
+        cd "${APP_ROOT}/www/server" || exit 1
         export NODE_ENV=production
-        export NITRO_PORT="${APP_PORT}"
         export TRIM_PKGVAR="${DATA_DIR}"
-        exec -a "MediaHub" "${NODE_BIN}" "${APP_ENTRY}"
+        export TRIM_PKGDIR="${APP_ROOT}"
+        export MEDIA_PATH="${MEDIA_PATH}"
+        export NITRO_PRESET=node-server
+        export PORT=3030
+        exec -a "MediaHub" "${NODE_BIN}" "${APP_ROOT}/www/server/index.mjs"
     ) >> "${LOG_FILE}" 2>&1 &
 
     printf "%s" "$!" > "${PID_FILE}"
@@ -103,7 +91,7 @@ stop_process() {
 
         kill -TERM "${pid}" >> "${LOG_FILE}" 2>&1
 
-        count=0
+        local count=0
         while check_process "${pid}" && [ ${count} -lt 10 ]; do
             sleep 1
             count=$((count + 1))
