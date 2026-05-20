@@ -93,9 +93,12 @@ jobs:
           mkdir -p app/server
           cp -r /tmp/oneserver-src/apps/server/dist/* app/server/ 2>/dev/null || true
           cp /tmp/oneserver-src/apps/server/package.json app/server/ 2>/dev/null || true
+          cp -r /tmp/oneserver-src/shared app/server/shared 2>/dev/null || true
 
-          # 从 workspace 根目录复制 node_modules（包含所有依赖）
-          cp -r /tmp/oneserver-src/node_modules app/server/ 2>/dev/null || true
+          # 单独安装生产依赖（避免复制整个 workspace node_modules）
+          cd /tmp/oneserver-src
+          npm install --omit=dev --ignore-scripts --prefix /tmp/prod-deps 2>/dev/null || true
+          cp -r /tmp/prod-deps/node_modules app/server/ 2>/dev/null || true
 
           # 前端静态文件 → app/server/public/
           mkdir -p app/server/public

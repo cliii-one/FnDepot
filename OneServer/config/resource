@@ -1,1 +1,18 @@
-{}
+{
+    "data-share":
+    {
+        "shares":
+        [
+            {
+                "name": "oneserver",
+                "permission":
+                {
+                    "rw":
+                    [
+                        "oneserver"
+                    ]
+                }
+            }
+        ]
+    }
+}

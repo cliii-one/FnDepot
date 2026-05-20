@@ -2,5 +2,7 @@
     "defaults":
     {
         "run-as": "package"
-    }
+    },
+    "username": "mediahub",
+    "groupname": "mediahub"
 }
