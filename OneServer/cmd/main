@@ -23,10 +23,6 @@ resolve_app_entry() {
         APP_ENTRY="${APP_ROOT}/server/index.js"
         return 0
     fi
-    if [ -f "${APP_ROOT}/server/dist/index.js" ]; then
-        APP_ENTRY="${APP_ROOT}/server/dist/index.js"
-        return 0
-    fi
     return 1
 }
 
@@ -61,7 +57,7 @@ start_process() {
     fi
 
     if ! resolve_app_entry; then
-        log_msg "Missing app entry: ${APP_ROOT}/server/dist/index.js"
+        log_msg "Missing app entry: ${APP_ROOT}/server/index.js"
         write_user_error "应用启动失败：未找到服务端入口文件。"
         return 1
     fi
