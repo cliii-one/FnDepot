@@ -82,29 +82,18 @@ jobs:
           done
           echo "✅ JavaScript 混淆完成"
 
-      - name: 配置 QEMU
-        if: matrix.arch == 'arm64'
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
-
       # ========== 为 ARM 替换 sharp 原生模块 ==========
       - name: 安装目标架构 sharp 模块
         if: matrix.arch == 'arm64'
         run: |
           echo "为 ARM 架构安装 sharp..."
-          mkdir -p /tmp/sharp-arm
-          docker run --rm --platform linux/arm64 \
-            -v /tmp/sharp-arm:/output \
-            node:24-slim \
-            bash -c "
-              cd /tmp && npm init -y > /dev/null 2>&1 &&
-              npm install sharp --os=linux --cpu=arm64 &&
-              cp -r node_modules/sharp /output/
-            "
-          # 替换 x86 sharp 为 ARM 版本
-          rm -rf /tmp/mediahub-src/.output/server/node_modules/sharp
-          cp -r /tmp/sharp-arm/sharp /tmp/mediahub-src/.output/server/node_modules/
+          SHARP_DIR="/tmp/mediahub-src/.output/server/node_modules/sharp"
+          # 删除 x86 sharp 原生二进制
+          rm -rf "${SHARP_DIR}/vendor"
+          rm -rf /tmp/mediahub-src/.output/server/node_modules/@img/sharp-linux-x64
+          # 安装 ARM sharp 原生包
+          cd /tmp/mediahub-src/.output/server
+          npm install @img/sharp-linux-arm64 --no-save 2>/dev/null || true
           echo "✅ ARM sharp 安装完成"
 
       # ========== 组装应用文件（对齐原始 workflow） ==========
