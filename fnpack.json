@@ -32,13 +32,20 @@
     "version": "1.0.2",
     "desc": "是一款轻量、安全的本地便签工具。专注高效记录，守护你的数据主权",
     "distributor": "cliii-one",
-    "distributor_url": "https://github.com/cliii-one/FnDepot/tree/main/fnnas.notes",
+    "distributor_url": "https://github.com/cliii-one/FnDepot/tree/main/fnnas-notes",
     "bug_report_url": "https://github.com/cliii-one/FnDepot/issues",
     "labels": "实用效率",
-    "size": "20",
-    "download_url": "https://github.com/DinDing1/fnnas-notes/releases/download/v1.0.2/fnnas.notes.fpk",
+    "size": "42",
     "install_type": "存储空间",
-    "changelog": "添加了通知和快照"
+    "changelog": "AI上线，arm暂时不可用，应用中心统一网关暂未上线"
+    "arch_diff": {
+      "x86": {
+        "download_url": "https://github.com/cliii-one/FnDepot/releases/download/fnnas-notes-v1.0.2/fnnas-notes-X86.fpk"
+      },
+      "arm": {
+        "download_url": "https://github.com/cliii-one/FnDepot/releases/download/fnnas-notes-v1.0.2/fnnas-notes-ARM.fpk"
+      }
+    }
   },
   "OneServer": {
     "display_name": "OneServer",
@@ -46,10 +53,10 @@
       "x86",
       "arm"
     ],
-    "version": "1.0.9",
+    "version": "1.1.0",
     "desc": "一个同时适配桌面端、手机端、fnOS iframe的轻量SSH管理与终端应用；聚焦 好看、好用、好维护的NAS端SSH体验",
     "distributor": "cliii-one",
-    "distributor_url": "https://github.com/cliii-one/FnDepot/tree/main/One%20Server",
+    "distributor_url": "https://github.com/cliii-one/FnDepot/tree/main/OneServer",
     "bug_report_url": "https://github.com/cliii-one/FnDepot/issues",
     "labels": "工具,效率",
     "size": "50.0",
@@ -57,10 +64,10 @@
     "changelog": "添加了Sftp",
     "arch_diff": {
       "x86": {
-        "download_url": "https://github.com/DinDing1/FnDepot/releases/download/OneServer-v1.0.9/OneServer-v1.0.9-x86.fpk"
+        "download_url": "https://github.com/cliii-one/FnDepot/releases/download/oneserver-v1.1.0/oneserver-X86.fpk"
       },
       "arm": {
-        "download_url": "https://github.com/DinDing1/FnDepot/releases/download/OneServer-v1.0.9/OneServer-v1.0.9-arm.fpk"
+        "download_url": "https://github.com/cliii-one/FnDepot/releases/download/oneserver-v1.1.0/oneserver-ARM.fpk"
       }
     }
   }
