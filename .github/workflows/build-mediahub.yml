@@ -183,3 +183,13 @@ jobs:
 
             ---
             构建时间：${{ steps.info.outputs.build_time }}
+
+      - name: 更新 README 编译时间
+        run: |
+          python3 scripts/update-readme-time.py MediaHub "${{ steps.info.outputs.build_time }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git diff --quiet README.md && echo "无变更" && exit 0
+          git add README.md
+          git commit -m "docs: 更新 MediaHub 编译时间"
+          git push
