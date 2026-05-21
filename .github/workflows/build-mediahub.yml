@@ -192,20 +192,23 @@ jobs:
 
       - name: 更新 README 编译时间
         run: |
+          git pull --rebase origin main
           python3 scripts/update-readme-time.py mediahub "${{ steps.info.outputs.build_time }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git diff --quiet README.md && echo "无变更" && exit 0
           git add README.md
           git commit -m "docs: 更新 MediaHub 编译时间"
+          git pull --rebase origin main
           git push
 
       - name: 更新 fnpack.json 版本信息
         if: github.event.inputs.update_fnpack == 'true'
         run: |
-          git pull origin main
+          git pull --rebase origin main
           python3 scripts/update-fnpack.py mediahub "${{ steps.info.outputs.tag }}" "${{ github.repository }}"
           git diff --quiet fnpack.json && echo "fnpack.json 无变更" && exit 0
           git add fnpack.json
           git commit -m "docs: 更新 MediaHub 版本信息到 fnpack.json"
+          git pull --rebase origin main
           git push
