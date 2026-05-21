@@ -16,10 +16,10 @@
     "changelog": "第三波更新，添加了媒体信息提取功能，加快STRM文件在Emby里面起播速度",
     "arch_diff": {
       "x86": {
-        "download_url": "https://github.com/cliii-one/FnDepot/releases/latest/download/mediahub.fpk"
+        "download_url": "https://github.com/cliii-one/FnDepot/releases/download/mediahub-v1.1.0/mediahub-X86.fpk"
       },
       "arm": {
-        "download_url": "https://github.com/cliii-one/FnDepot/releases/latest/download/mediahub_arm.fpk"
+        "download_url": "https://github.com/cliii-one/FnDepot/releases/download/mediahub-v1.1.0/mediahub-ARM.fpk"
       }
     }
   },
