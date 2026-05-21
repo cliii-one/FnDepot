@@ -3,6 +3,10 @@ import sys
 
 
 def update_fnpack(app_key, tag, repo):
+    app_key = app_key.strip().replace('\r', '')
+    tag = tag.strip().replace('\r', '')
+    repo = repo.strip().replace('\r', '')
+
     with open('fnpack.json', 'r') as f:
         data = json.load(f)
 

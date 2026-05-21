@@ -12,7 +12,9 @@ DISPLAY_NAMES = {
 
 
 def update_readme_time(app_name, build_time):
-    time_only = re.sub(r'\s*CST$', '', build_time.strip())
+    app_name = app_name.strip().replace('\r', '')
+    build_time = build_time.strip().replace('\r', '')
+    time_only = re.sub(r'\s*CST$', '', build_time)
     display = DISPLAY_NAMES.get(app_name, app_name)
 
     with open('README.md', 'r') as f:
