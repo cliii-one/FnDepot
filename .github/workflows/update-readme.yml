@@ -36,7 +36,7 @@ jobs:
               {"name": "OneServer",  "dir": "OneServer",   "desc": "飞牛 NAS SSH 终端管理工具",           "filter": "oneserver-v*"},
           ]
 
-          result = gh("release", "list", "--repo", REPO, "--limit", "100", "--json", "tagName,body")
+          result = gh("release", "list", "--repo", REPO, "--limit", "100", "--json", "tagName")
           releases = json.loads(result)
 
           build_times = {}
@@ -46,8 +46,9 @@ jobs:
               if not matched:
                   build_times[app["name"]] = "-"
                   continue
-              latest = matched[0]
-              body = latest.get("body", "")
+              tag = matched[0]["tagName"]
+              view = gh("release", "view", tag, "--repo", REPO, "--json", "body")
+              body = json.loads(view).get("body", "")
               m = re.search(r"构建时间[：:]\s*(\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2})", body)
               build_times[app["name"]] = m.group(1) if m else "-"
 
