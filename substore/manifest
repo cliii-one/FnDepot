@@ -29,7 +29,7 @@ maintainer_url        = https://github.com/sub-store-org/Sub-Store
 
 # 分发者信息
 distributor           =cliii_one
-distributor_url       =https://github.com/cliii-one/FnStore
+distributor_url=https://github.com/cliii-one/FnDepot
 
 # 最低支持的飞牛系统版本
 os_min_version        = 0.9.0
