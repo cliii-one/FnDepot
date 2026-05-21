@@ -1,6 +1,6 @@
 appname=OneServer
 version=1.1.0
-display_name=One Server
+display_name=OneServer
 desc=一个同时适配桌面端、手机端、fnOS iframe的轻量SSH管理与终端应用；聚焦 好看、好用、好维护的NAS端SSH体验
 platform=all
 source=thirdparty
