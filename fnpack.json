@@ -37,7 +37,7 @@
     "labels": "实用效率",
     "size": "42",
     "install_type": "存储空间",
-    "changelog": "AI上线，arm暂时不可用，应用中心统一网关暂未上线"
+    "changelog": "AI上线，arm暂时不可用，应用中心统一网关暂未上线",
     "arch_diff": {
       "x86": {
         "download_url": "https://github.com/cliii-one/FnDepot/releases/download/fnnas-notes-v1.0.2/fnnas-notes-X86.fpk"
@@ -71,7 +71,6 @@
       }
     }
   },
-  },
   "SubStore": {
     "display_name": "SubStore",
     "platform": [
@@ -81,7 +80,7 @@
     "version": "1.0.0",
     "desc": "基于 Sub-Store 的飞牛 fnOS 原生应用，支持多种代理客户端格式的订阅转换和管理",
     "distributor": "cliii-one",
-    "distributor_url": "https://github.com/cliii-one/FnDepot/tree/main/OneServer",
+    "distributor_url": "https://github.com/cliii-one/FnDepot/tree/main/SubStore",
     "bug_report_url": "https://github.com/cliii-one/FnDepot/issues",
     "labels": "工具,效率",
     "size": "45",
@@ -96,7 +95,6 @@
       }
     }
   },
-  },
   "ClashLite": {
     "display_name": "ClashLite",
     "platform": [
@@ -106,7 +104,7 @@
     "version": "1.0.0",
     "desc": "基于 vernesong/mihomo (Alpha-Smart) 内核的飞牛 fnOS 代理管理应用，集成 metacubexd 管理面板",
     "distributor": "cliii-one",
-    "distributor_url": "https://github.com/cliii-one/FnDepot/tree/main/OneServer",
+    "distributor_url": "https://github.com/cliii-one/FnDepot/tree/main/ClashLite",
     "bug_report_url": "https://github.com/cliii-one/FnDepot/issues",
     "labels": "工具,效率",
     "size": "34",
