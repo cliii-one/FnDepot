@@ -11,7 +11,7 @@
     "distributor_url": "https://github.com/cliii-one/FnDepot/tree/main/MediaHub",
     "bug_report_url": "https://github.com/cliii-one/FnDepot/issues",
     "labels": "工具,媒体,云盘",
-    "size": "30.02",
+    "size": "69",
     "install_type": "存储空间",
     "changelog": "第三波更新，添加了媒体信息提取功能，加快STRM文件在Emby里面起播速度",
     "arch_diff": {
