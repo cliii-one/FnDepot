@@ -1,5 +1,4 @@
-name: 构建 MediaHub FPK
-
+name: 构建 MediaHub
 on:
   push:
     tags: ['mediahub-v*']
