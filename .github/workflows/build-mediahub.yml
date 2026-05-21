@@ -34,7 +34,7 @@ jobs:
             fnpack: fnpack-1.2.1-linux-arm64
     defaults:
       run:
-        working-directory: MediaHub
+        working-directory: mediahub
 
     steps:
       - name: 检出代码
@@ -131,7 +131,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mediahub-${{ matrix.arch }}
-          path: MediaHub/mediahub-*.fpk
+          path: mediahub/mediahub-*.fpk
 
   release:
     needs: build
@@ -156,7 +156,7 @@ jobs:
       - name: 确定构建信息
         id: info
         run: |
-          MANIFEST_VER=$(grep '^version' MediaHub/manifest | awk -F'=' '{print $2}' | tr -d ' ')
+          MANIFEST_VER=$(grep '^version' mediahub/manifest | awk -F'=' '{print $2}' | tr -d ' ')
           if [[ "${{ github.ref }}" == refs/tags/mediahub-v* ]]; then
             TAG="${{ github.ref_name }}" && VERSION="${TAG#mediahub-v}"
           else
@@ -186,7 +186,7 @@ jobs:
 
       - name: 更新 README 编译时间
         run: |
-          python3 scripts/update-readme-time.py MediaHub "${{ steps.info.outputs.build_time }}"
+          python3 scripts/update-readme-time.py mediahub "${{ steps.info.outputs.build_time }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git diff --quiet README.md && echo "无变更" && exit 0

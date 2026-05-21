@@ -1,16 +1,14 @@
 {
-  "MediaHub": {
+  "mediahub": {
     "display_name": "MediaHub",
-    "platform": [
-      "x86",
-      "arm"
-    ],
+    "platform": ["x86", "arm"],
     "version": "1.1.0",
     "desc": "媒体库管理工具，支持云盘自动整理、自动重命名、STRM文件生成、Emby 302反代、Telegram、Wechat通知等功能",
     "distributor": "cliii-one",
     "distributor_url": "https://github.com/cliii-one/FnDepot/tree/main/MediaHub",
     "bug_report_url": "https://github.com/cliii-one/FnDepot/issues",
     "labels": "工具,媒体,云盘",
+    "isdocker": "false",
     "size": "69",
     "install_type": "存储空间",
     "changelog": "第三波更新，添加了媒体信息提取功能，加快STRM文件在Emby里面起播速度",
@@ -25,16 +23,14 @@
   },
   "fnnas-notes": {
     "display_name": "贴贴密笺",
-    "platform": [
-      "x86",
-      "arm"
-    ],
+    "platform": ["x86", "arm"],
     "version": "1.0.2",
     "desc": "是一款轻量、安全的本地便签工具。专注高效记录，守护你的数据主权",
     "distributor": "cliii-one",
     "distributor_url": "https://github.com/cliii-one/FnDepot/tree/main/fnnas-notes",
     "bug_report_url": "https://github.com/cliii-one/FnDepot/issues",
     "labels": "实用效率",
+    "isdocker": "false",
     "size": "42",
     "install_type": "存储空间",
     "changelog": "AI上线，arm暂时不可用，应用中心统一网关暂未上线",
@@ -47,18 +43,16 @@
       }
     }
   },
-  "OneServer": {
+  "oneserver": {
     "display_name": "OneServer",
-    "platform": [
-      "x86",
-      "arm"
-    ],
+    "platform": ["x86", "arm"],
     "version": "1.1.0",
     "desc": "一个同时适配桌面端、手机端、fnOS iframe的轻量SSH管理与终端应用；聚焦 好看、好用、好维护的NAS端SSH体验",
     "distributor": "cliii-one",
     "distributor_url": "https://github.com/cliii-one/FnDepot/tree/main/OneServer",
     "bug_report_url": "https://github.com/cliii-one/FnDepot/issues",
     "labels": "工具,效率",
+    "isdocker": "false",
     "size": "50.0",
     "install_type": "存储空间",
     "changelog": "添加了Sftp",
@@ -71,18 +65,16 @@
       }
     }
   },
-  "SubStore": {
+  "substore": {
     "display_name": "SubStore",
-    "platform": [
-      "x86",
-      "arm"
-    ],
+    "platform": ["x86", "arm"],
     "version": "1.0.0",
     "desc": "基于 Sub-Store 的飞牛 fnOS 原生应用，支持多种代理客户端格式的订阅转换和管理",
     "distributor": "cliii-one",
     "distributor_url": "https://github.com/cliii-one/FnDepot/tree/main/SubStore",
     "bug_report_url": "https://github.com/cliii-one/FnDepot/issues",
     "labels": "工具,效率",
+    "isdocker": "false",
     "size": "45",
     "install_type": "存储空间",
     "changelog": "首次上线",
@@ -95,18 +87,16 @@
       }
     }
   },
-  "ClashLite": {
+  "clashlite": {
     "display_name": "ClashLite",
-    "platform": [
-      "x86",
-      "arm"
-    ],
+    "platform": ["x86", "arm"],
     "version": "1.0.0",
     "desc": "基于 vernesong/mihomo (Alpha-Smart) 内核的飞牛 fnOS 代理管理应用，集成 metacubexd 管理面板",
     "distributor": "cliii-one",
     "distributor_url": "https://github.com/cliii-one/FnDepot/tree/main/ClashLite",
     "bug_report_url": "https://github.com/cliii-one/FnDepot/issues",
     "labels": "工具,效率",
+    "isdocker": "false",
     "size": "34",
     "install_type": "存储空间",
     "changelog": "首次上线，注意该款是root权限，因为要使用tun模式，必须开启root权限",

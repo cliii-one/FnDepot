@@ -31,7 +31,7 @@ jobs:
             fnpack_platform: arm
     defaults:
       run:
-        working-directory: SubStore
+        working-directory: substore
 
     steps:
       - name: 检出代码
@@ -79,8 +79,8 @@ jobs:
           npm install -g pnpm && corepack enable && corepack prepare pnpm@latest --activate
           pnpm i --no-frozen-lockfile
           pnpm build
-          mkdir -p $GITHUB_WORKSPACE/SubStore/app/www
-          cp -r dist/* $GITHUB_WORKSPACE/SubStore/app/www/
+          mkdir -p $GITHUB_WORKSPACE/substore/app/www
+          cp -r dist/* $GITHUB_WORKSPACE/substore/app/www/
           echo "✅ 前端构建完成"
 
       - name: 获取前端版本号
@@ -137,7 +137,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: substore-${{ matrix.arch }}
-          path: SubStore/substore-*.fpk
+          path: substore/substore-*.fpk
           retention-days: 30
 
       - name: 上传版本信息
@@ -145,7 +145,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: version-info
-          path: SubStore/*_ver.txt
+          path: substore/*_ver.txt
           retention-days: 1
 
   release:
@@ -175,7 +175,7 @@ jobs:
       - name: 确定构建信息
         id: info
         run: |
-          MANIFEST_VER=$(grep '^version' SubStore/manifest | awk -F'=' '{print $2}' | tr -d ' ')
+          MANIFEST_VER=$(grep '^version' substore/manifest | awk -F'=' '{print $2}' | tr -d ' ')
           if [[ "${{ github.ref }}" == refs/tags/substore-v* ]]; then
             TAG="${{ github.ref_name }}" && VERSION="${TAG#substore-v}"
           elif [ -n "${{ github.event.inputs.version }}" ]; then
@@ -223,7 +223,7 @@ jobs:
 
       - name: 更新 README 编译时间
         run: |
-          python3 scripts/update-readme-time.py SubStore "${{ steps.info.outputs.build_time }}"
+          python3 scripts/update-readme-time.py substore "${{ steps.info.outputs.build_time }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git diff --quiet README.md && echo "无变更" && exit 0

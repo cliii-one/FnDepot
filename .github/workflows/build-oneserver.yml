@@ -31,7 +31,7 @@ jobs:
             fnpack_platform: arm
     defaults:
       run:
-        working-directory: OneServer
+        working-directory: oneserver
 
     steps:
       - name: 检出代码
@@ -147,7 +147,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: oneserver-${{ matrix.arch }}
-          path: OneServer/oneserver-*.fpk
+          path: oneserver/oneserver-*.fpk
 
   release:
     needs: build
@@ -172,7 +172,7 @@ jobs:
       - name: 确定构建信息
         id: info
         run: |
-          MANIFEST_VER=$(grep '^version' OneServer/manifest | awk -F'=' '{print $2}' | tr -d ' ')
+          MANIFEST_VER=$(grep '^version' oneserver/manifest | awk -F'=' '{print $2}' | tr -d ' ')
           if [[ "${{ github.ref }}" == refs/tags/oneserver-v* ]]; then
             TAG="${{ github.ref_name }}" && VERSION="${TAG#oneserver-v}"
           else
@@ -202,7 +202,7 @@ jobs:
 
       - name: 更新 README 编译时间
         run: |
-          python3 scripts/update-readme-time.py OneServer "${{ steps.info.outputs.build_time }}"
+          python3 scripts/update-readme-time.py oneserver "${{ steps.info.outputs.build_time }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git diff --quiet README.md && echo "无变更" && exit 0
