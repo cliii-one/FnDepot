@@ -221,12 +221,13 @@ jobs:
             ---
             构建时间：${{ steps.info.outputs.build_time }}
 
-      - name: 更新 README 编译时间
+      - name: 更新 README 和 fnpack.json
         run: |
           python3 scripts/update-readme-time.py substore "${{ steps.info.outputs.build_time }}"
+          python3 scripts/update-fnpack.py substore "${{ steps.info.outputs.tag }}" "${{ github.repository }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git diff --quiet README.md && echo "无变更" && exit 0
-          git add README.md
-          git commit -m "docs: 更新 SubStore 编译时间"
+          git diff --quiet README.md fnpack.json && echo "无变更" && exit 0
+          git add README.md fnpack.json
+          git commit -m "docs: 更新 SubStore 版本信息"
           git push
