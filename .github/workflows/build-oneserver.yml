@@ -1,4 +1,4 @@
-name: 构建 OneServer FPK
+name: 构建 OneServer
 
 on:
   push:
