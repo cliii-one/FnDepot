@@ -15,6 +15,12 @@ on:
         default: 'true'
         type: choice
         options: ['true', 'false']
+      update_fnpack:
+        description: '更新 fnpack.json 版本信息'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['true', 'false']
 
 jobs:
   build:
@@ -239,13 +245,21 @@ jobs:
             ---
             构建时间：${{ steps.info.outputs.build_time }}
 
-      - name: 更新 README 和 fnpack.json
+      - name: 更新 README 编译时间
         run: |
           python3 scripts/update-readme-time.py fnnas-notes "${{ steps.info.outputs.build_time }}"
-          python3 scripts/update-fnpack.py fnnas-notes "${{ steps.info.outputs.tag }}" "${{ github.repository }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git diff --quiet README.md fnpack.json && echo "无变更" && exit 0
-          git add README.md fnpack.json
-          git commit -m "docs: 更新 fnnas-notes 版本信息"
+          git diff --quiet README.md && echo "无变更" && exit 0
+          git add README.md
+          git commit -m "docs: 更新 fnnas-notes 编译时间"
+          git push
+
+      - name: 更新 fnpack.json 版本信息
+        if: github.event.inputs.update_fnpack == 'true'
+        run: |
+          git pull origin main
+          python3 scripts/update-fnpack.py fnnas-notes "${{ steps.info.outputs.tag }}" "${{ github.repository }}"
+          git add fnpack.json
+          git commit -m "docs: 更新 fnnas-notes 版本信息到 fnpack.json"
           git push
