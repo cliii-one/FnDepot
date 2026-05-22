@@ -81,8 +81,7 @@ jobs:
           echo "✅ Flutter Web 构建完成"
 
       # ========== 编译 Python 后端为二进制 (Nuitka) ==========
-      # x86_64: 直接在 CI 编译
-      # arm64: 通过 Docker QEMU 在 ARM 容器内编译
+      # x86_64/arm64: 均通过 Docker 容器编译，使用 bullseye 确保 GLIBC 兼容性
       - name: 配置 QEMU (ARM 构建)
         if: matrix.arch == 'arm64'
         uses: docker/setup-qemu-action@v3
@@ -112,17 +111,24 @@ jobs:
                 echo '编译完成'
               "
           else
-            echo "x86_64 构建：直接编译..."
-            cd /tmp/fnnas-notes-src/src/backend
-            sudo apt-get install -y -qq patchelf
-            pip install nuitka cryptography ordered-set
-            python -m nuitka --standalone --onefile \
-              --include-package=handlers \
-              --include-module=cryptography \
-              --include-module=sqlite3 \
-              --output-filename=server \
-              --output-dir=/tmp/nuitka-out \
-              server.py
+            echo "x86_64 构建：通过 Docker 容器编译（使用 bullseye 确保 GLIBC 兼容性）..."
+            docker run --rm \
+              -v /tmp/fnnas-notes-src/src/backend:/build \
+              -v /tmp/nuitka-out:/output \
+              python:3.11-slim-bullseye \
+              bash -c "
+                apt-get update -qq && apt-get install -y -qq patchelf gcc > /dev/null &&
+                pip install nuitka cryptography ordered-set --quiet &&
+                cd /build &&
+                python -m nuitka --standalone --onefile \
+                  --include-package=handlers \
+                  --include-module=cryptography \
+                  --include-module=sqlite3 \
+                  --output-filename=server \
+                  --output-dir=/output \
+                  server.py &&
+                echo '编译完成'
+              "
           fi
           echo "✅ Python 后端编译完成"
           file /tmp/nuitka-out/server 2>/dev/null || true
