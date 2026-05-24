@@ -23,13 +23,9 @@ const (
 	upstreamBaseURL = "http://127.0.0.1:9090"
 	socketFileName  = "clashlite-dev.sock"
 	configJSPath    = "/ui/config.js"
-	defaultPort     = "5666"
 )
 
-var (
-	gatewaySecret = ""
-	gatewayPort   = defaultPort
-)
+var gatewaySecret = ""
 
 func main() {
 	appDest := os.Getenv("TRIM_APPDEST")
@@ -39,9 +35,6 @@ func main() {
 	socketPath := appDest + "/" + socketFileName
 
 	gatewaySecret = os.Getenv("GATEWAY_SECRET")
-	if p := os.Getenv("GATEWAY_PORT"); p != "" {
-		gatewayPort = p
-	}
 
 	upstreamURL, err := url.Parse(upstreamBaseURL)
 	if err != nil {
@@ -75,6 +68,7 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
+	// 拦截 config.js 请求，动态生成 metacubexd 默认后端地址配置
 	mux.HandleFunc(gatewayPrefix+configJSPath, handleConfigJS)
 	mux.Handle("/", proxy)
 
@@ -96,7 +90,6 @@ func main() {
 
 	log.Printf("Unix Socket 成功监听并赋权 0666: %s", socketPath)
 	log.Printf("网关前缀: %s -> 上游: %s", gatewayPrefix, upstreamBaseURL)
-	log.Printf("网关端口: %s", gatewayPort)
 	log.Printf("自动配置密钥: %s", func() string {
 		if gatewaySecret != "" {
 			return "已设置"
@@ -127,40 +120,20 @@ func main() {
 	fmt.Println("网关反向代理已优雅退出")
 }
 
-// buildGatewayURL 根据请求信息构造完整的网关地址，
-// fnOS 网关转发到 Unix Socket 时 Host 头可能丢失端口号，
-// 因此通过 GATEWAY_PORT 环境变量补充端口信息
-func buildGatewayURL(host string, isTLS bool) string {
-	if host == "" {
-		host = "127.0.0.1:" + gatewayPort
-	}
-
-	// Host 不含端口时，补上 GATEWAY_PORT
-	if !strings.Contains(host, ":") {
-		host = host + ":" + gatewayPort
-	}
-
-	scheme := "http"
-	if isTLS {
-		scheme = "https"
-	}
-	return scheme + "://" + host + gatewayPrefix
-}
-
 // handleConfigJS 动态生成 metacubexd 的 config.js，
 // 利用 metacubexd 原生的 __METACUBEXD_CONFIG__ 机制设置默认后端地址，
-// 使前端输入框自动填充网关地址而非 127.0.0.1:9090
+// 使用 window.location.origin 在浏览器端动态获取 host:port，
+// 无需在服务端猜测端口号，适配任何 fnOS 网关端口配置
 func handleConfigJS(w http.ResponseWriter, r *http.Request) {
-	host := r.Host
-	if host == "" {
-		host = r.Header.Get("Host")
-	}
-	gatewayURL := buildGatewayURL(host, r.TLS != nil)
-
 	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-	fmt.Fprintf(w, "window.__METACUBEXD_CONFIG__ = { defaultBackendURL: '%s' }", gatewayURL)
-	log.Printf("已动态生成 config.js: defaultBackendURL = %s", gatewayURL)
+	// window.location.origin 包含协议+host+port（如 http://10.10.10.110:5666），
+	// 浏览器端自动获取，服务端无需关心实际端口号
+	fmt.Fprintf(w,
+		"window.__METACUBEXD_CONFIG__ = { defaultBackendURL: window.location.origin + '%s' }",
+		gatewayPrefix,
+	)
+	log.Printf("已动态生成 config.js: defaultBackendURL = window.location.origin + %s", gatewayPrefix)
 }
 
 // modifyResponse 统一处理上游响应的修改
@@ -203,11 +176,9 @@ func rewriteExternalController(resp *http.Response) error {
 		return err
 	}
 
-	host := resp.Request.Host
-	if host == "" {
-		host = resp.Request.Header.Get("Host")
-	}
-	gatewayURL := buildGatewayURL(host, resp.Request.TLS != nil)
+	// 从请求的 Referer 或 Origin 头获取浏览器实际访问的 host:port
+	// fnOS 网关转发时 Host 头可能丢失端口，但浏览器发送的 Origin/Referer 包含完整地址
+	gatewayURL := extractGatewayURL(resp.Request)
 
 	var cfg map[string]interface{}
 	if err := json.Unmarshal(bodyBytes, &cfg); err != nil {
@@ -232,6 +203,37 @@ func rewriteExternalController(resp *http.Response) error {
 
 	log.Printf("已重写 /configs 响应: external-controller -> %s", gatewayURL)
 	return nil
+}
+
+// extractGatewayURL 从请求头中提取浏览器实际访问的完整网关地址，
+// 优先使用 Origin 头（浏览器 AJAX 请求自动携带），
+// 其次使用 Referer 头，最后回退到 Host 头
+func extractGatewayURL(r *http.Request) string {
+	// 浏览器发起的 AJAX 请求通常携带 Origin 头，格式如 http://10.10.10.110:5666
+	if origin := r.Header.Get("Origin"); origin != "" {
+		return origin + gatewayPrefix
+	}
+
+	// Referer 头包含完整 URL，从中提取 origin 部分
+	if referer := r.Header.Get("Referer"); referer != "" {
+		if u, err := url.Parse(referer); err == nil && u.Scheme != "" && u.Host != "" {
+			return u.Scheme + "://" + u.Host + gatewayPrefix
+		}
+	}
+
+	// 回退到 Host 头（可能丢失端口）
+	host := r.Host
+	if host == "" {
+		host = r.Header.Get("Host")
+	}
+	if host == "" {
+		host = "127.0.0.1"
+	}
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	return scheme + "://" + host + gatewayPrefix
 }
 
 // readResponseBody 读取响应体，自动处理 gzip 解压
