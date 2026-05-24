@@ -109,13 +109,7 @@ start_gateway_proxy() {
         exit 1
     fi
 
-    local mihomo_secret=""
-    if [ -f "${MIHOMO_CONFIG}" ]; then
-        mihomo_secret=$(grep '^secret:' "${MIHOMO_CONFIG}" 2>/dev/null | awk '{print $2}' | tr -d '"' | tr -d "'" | tr -d ' ')
-    fi
-    export GATEWAY_SECRET="${mihomo_secret}"
-
-    log_msg "Starting gateway-proxy (secret: $([ -n "${mihomo_secret}" ] && echo '已配置' || echo '未配置')) ..."
+    log_msg "Starting gateway-proxy ..."
 
     "${GATEWAY_PROXY_BIN}" >> "${LOG_FILE}" 2>&1 &
     local pid=$!
