@@ -94,7 +94,7 @@ experimental:
      
 # 管理面板配置
 external-ui: ui
-external-controller: 0.0.0.0:9090
+external-controller: 127.0.0.1:9090
 secret: MB_SECRET
 authentication:
   - mihomo:MB_SECRET

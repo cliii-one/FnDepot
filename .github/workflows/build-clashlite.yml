@@ -36,9 +36,11 @@ jobs:
           - arch: x86_64
             mihomo_arch: amd64
             fnpack_platform: x86
+            go_arch: amd64
           - arch: arm64
             mihomo_arch: arm64
             fnpack_platform: arm
+            go_arch: arm64
     defaults:
       run:
         working-directory: clashlite
@@ -46,6 +48,12 @@ jobs:
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
+
+      - name: 设置 Go 环境
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache-dependency-path: clashlite/app/server/proxy/go.sum
 
       - name: 确定版本号
         id: version
@@ -116,6 +124,16 @@ jobs:
           cp -r "$TMP_DIR"/metacubexd-gh-pages/* app/server/public/
           rm -rf "$TMP_DIR" metacubexd.zip
           echo "前端文件数量: $(ls app/server/public/ | wc -l)"
+
+      - name: 交叉编译 gateway-proxy（网关反向代理）
+        run: |
+          cd app/server/proxy
+          GOOS=linux GOARCH=${{ matrix.go_arch }} CGO_ENABLED=0 \
+            go build -ldflags="-s -w" -o ../gateway-proxy .
+          cd -
+          chmod +x app/server/gateway-proxy
+          file app/server/gateway-proxy
+          echo "gateway-proxy: $(du -h app/server/gateway-proxy | cut -f1)"
 
       - name: 更新 manifest
         run: |
@@ -208,6 +226,13 @@ jobs:
             ## ClashLite v${{ steps.info.outputs.version }}
 
             基于 vernesong/mihomo (Alpha-Smart) 内核的飞牛 fnOS 代理管理应用，集成 metacubexd 管理面板。
+
+            ### 🆕 v2.0.0 网关版特性
+
+            - ✅ 通过飞牛统一网关访问 UI，无需暴露 9090 端口
+            - ✅ 使用 Unix Domain Socket 反向代理，更安全更便捷
+            - ✅ mihomo API 仅监听 127.0.0.1，不对外暴露
+            - ✅ metacubexd 自动配置后端地址，无需手动输入
 
             ### 📦 下载
 

@@ -5,13 +5,14 @@ MIHOMO_BIN="${TRIM_PKGHOME}/mihomo/mihomo"
 MIHOMO_DIR="${TRIM_PKGHOME}/mihomo"
 MIHOMO_CONFIG="${MIHOMO_DIR}/config.yaml"
 PID_FILE="${TRIM_PKGVAR}/mihomo.pid"
+PROXY_PID_FILE="${TRIM_PKGVAR}/gateway-proxy.pid"
 LOG_FILE="${TRIM_PKGVAR}/info.log"
+GATEWAY_PROXY_BIN="${TRIM_APPDEST}/server/gateway-proxy"
 
 log_msg() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "${LOG_FILE}"
 }
 
-# 配置文件在共享目录
 if [ -n "${TRIM_DATA_SHARE_PATHS:-}" ]; then
     SHARE_DIR=$(echo "${TRIM_DATA_SHARE_PATHS}" | cut -d: -f1)
     if [ -f "${SHARE_DIR}/config.yaml" ]; then
@@ -19,7 +20,6 @@ if [ -n "${TRIM_DATA_SHARE_PATHS:-}" ]; then
     fi
 fi
 
-# 确保配置文件存在
 ensure_config() {
     if [ ! -f "${MIHOMO_CONFIG}" ]; then
         local template="${TRIM_APPDEST}/server/config/OneSmart.yaml"
@@ -34,7 +34,6 @@ ensure_config() {
     fi
 }
 
-# 复制预装文件（二进制、模型、GeoData）
 copy_bundled() {
     local bundled_dir="${TRIM_APPDEST}/server/data/mihomo"
     if [ -d "${bundled_dir}" ]; then
@@ -48,7 +47,6 @@ copy_bundled() {
     fi
 }
 
-# 复制 metacubexd 到 ui 目录（mihomo external-ui）
 copy_ui() {
     local src="${TRIM_APPDEST}/server/public"
     local dst="${MIHOMO_DIR}/ui"
@@ -59,7 +57,7 @@ copy_ui() {
 }
 
 start_mihomo() {
-    if check_status; then
+    if check_mihomo_status; then
         return 0
     fi
 
@@ -69,7 +67,9 @@ start_mihomo() {
 
     if [ ! -x "${MIHOMO_BIN}" ]; then
         log_msg "ERROR: mihomo binary not found at ${MIHOMO_BIN}"
-        return 1
+        echo "【启动异常】未找到 mihomo 核心程序文件。" > "${TRIM_TEMP_LOGFILE}"
+        echo "请尝试在飞牛应用中心卸载后重新安装此应用。" >> "${TRIM_TEMP_LOGFILE}"
+        exit 1
     fi
 
     log_msg "Starting mihomo ..."
@@ -83,6 +83,50 @@ start_mihomo() {
     local pid=$!
     printf "%s" "${pid}" > "${PID_FILE}"
     log_msg "mihomo started with PID ${pid}"
+
+    local count=0
+    while [ ${count} -lt 10 ]; do
+        if curl -s http://127.0.0.1:9090 > /dev/null 2>&1; then
+            log_msg "mihomo API 已就绪"
+            return 0
+        fi
+        sleep 1
+        count=$((count + 1))
+    done
+    log_msg "WARNING: mihomo API 未在 10 秒内就绪，继续启动网关代理"
+    return 0
+}
+
+start_gateway_proxy() {
+    if check_proxy_status; then
+        return 0
+    fi
+
+    if [ ! -x "${GATEWAY_PROXY_BIN}" ]; then
+        log_msg "ERROR: gateway-proxy binary not found at ${GATEWAY_PROXY_BIN}"
+        echo "【启动异常】未找到网关反向代理程序。" > "${TRIM_TEMP_LOGFILE}"
+        echo "请尝试在飞牛应用中心卸载后重新安装此应用。" >> "${TRIM_TEMP_LOGFILE}"
+        exit 1
+    fi
+
+    log_msg "Starting gateway-proxy ..."
+
+    "${GATEWAY_PROXY_BIN}" >> "${LOG_FILE}" 2>&1 &
+    local pid=$!
+    printf "%s" "${pid}" > "${PROXY_PID_FILE}"
+    log_msg "gateway-proxy started with PID ${pid}"
+
+    local socket_path="${TRIM_APPDEST}/clashlite.sock"
+    local count=0
+    while [ ${count} -lt 5 ]; do
+        if [ -S "${socket_path}" ]; then
+            log_msg "gateway-proxy Unix Socket 已就绪: ${socket_path}"
+            return 0
+        fi
+        sleep 1
+        count=$((count + 1))
+    done
+    log_msg "WARNING: gateway-proxy Socket 未在 5 秒内就绪"
     return 0
 }
 
@@ -112,7 +156,6 @@ stop_mihomo() {
         rm -f "${PID_FILE}"
     fi
 
-    # 清理孤儿进程
     local mihomo_pid
     mihomo_pid=$(pgrep -f "mihomo -d ${MIHOMO_DIR}" 2>/dev/null) || true
     if [ -n "${mihomo_pid}" ]; then
@@ -127,7 +170,43 @@ stop_mihomo() {
     return 0
 }
 
-check_status() {
+stop_gateway_proxy() {
+    log_msg "Stopping gateway-proxy ..."
+
+    if [ -r "${PROXY_PID_FILE}" ]; then
+        local pid
+        pid=$(head -n 1 "${PROXY_PID_FILE}" | tr -d '[:space:]')
+
+        if [ -n "${pid}" ] && kill -0 "${pid}" 2>/dev/null; then
+            log_msg "Sending TERM to gateway-proxy PID:${pid}"
+            kill -TERM "${pid}" 2>/dev/null || true
+
+            local count=0
+            while kill -0 "${pid}" 2>/dev/null && [ ${count} -lt 5 ]; do
+                sleep 1
+                count=$((count + 1))
+            done
+
+            if kill -0 "${pid}" 2>/dev/null; then
+                kill -KILL "${pid}" 2>/dev/null || true
+            fi
+        fi
+        rm -f "${PROXY_PID_FILE}"
+    fi
+
+    local proxy_pid
+    proxy_pid=$(pgrep -f "gateway-proxy" 2>/dev/null) || true
+    if [ -n "${proxy_pid}" ]; then
+        kill -TERM ${proxy_pid} 2>/dev/null || true
+        sleep 1
+    fi
+
+    local socket_path="${TRIM_APPDEST}/clashlite.sock"
+    rm -f "${socket_path}"
+    return 0
+}
+
+check_mihomo_status() {
     if [ -f "${PID_FILE}" ]; then
         local pid
         pid=$(head -n 1 "${PID_FILE}" | tr -d '[:space:]')
@@ -140,15 +219,31 @@ check_status() {
     return 1
 }
 
+check_proxy_status() {
+    if [ -f "${PROXY_PID_FILE}" ]; then
+        local pid
+        pid=$(head -n 1 "${PROXY_PID_FILE}" | tr -d '[:space:]')
+        if [ -n "${pid}" ] && kill -0 "${pid}" 2>/dev/null; then
+            return 0
+        else
+            rm -f "${PROXY_PID_FILE}"
+        fi
+    fi
+    return 1
+}
+
 case "${1:-}" in
 start)
+    mkdir -p "${TRIM_PKGVAR}"
     start_mihomo
+    start_gateway_proxy
     ;;
 stop)
+    stop_gateway_proxy
     stop_mihomo
     ;;
 status)
-    if check_status; then
+    if check_mihomo_status && check_proxy_status; then
         exit 0
     else
         exit 3

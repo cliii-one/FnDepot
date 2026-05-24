@@ -4,9 +4,10 @@
             "title": "ClashLite",
             "icon": "images/icon-{0}.png",
             "type": "iframe",
-            "protocol": "http",
-            "port": "9090",
-            "url": "/ui",
+            "protocol": "",
+            "gatewaySocket": "clashlite.sock",
+            "gatewayPrefix": "/app/clashlite",
+            "url": "/app/clashlite/ui/",
             "allUsers": true,
             "control": {
                 "accessPerm": "editable"
