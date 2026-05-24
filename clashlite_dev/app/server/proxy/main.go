@@ -15,9 +15,9 @@ import (
 )
 
 const (
-	gatewayPrefix   = "/app/clashlite-dev"
+	gatewayPrefix   = "/app/clashlite_dev"
 	upstreamBaseURL = "http://127.0.0.1:9090"
-	socketFileName  = "clashlite-dev.sock"
+	socketFileName  = "clashlite_dev.sock"
 )
 
 func main() {

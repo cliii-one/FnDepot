@@ -5,9 +5,9 @@
             "icon": "images/icon_{0}.png",
             "type": "iframe",
             "protocol": "",
-            "gatewaySocket": "clashlite-dev.sock",
-            "gatewayPrefix": "/app/clashlite-dev",
-            "url": "/app/clashlite-dev/ui",
+            "gatewaySocket": "clashlite_dev.sock",
+            "gatewayPrefix": "/app/clashlite_dev",
+            "url": "/app/clashlite_dev/ui",
             "allUsers": true,
             "control": {
                 "accessPerm": "editable"
