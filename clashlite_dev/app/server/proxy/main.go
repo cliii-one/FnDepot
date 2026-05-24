@@ -2,6 +2,7 @@ package main
 
 import (
 	"compress/gzip"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -116,39 +117,107 @@ func main() {
 	fmt.Println("网关反向代理已优雅退出")
 }
 
+// modifyResponse 统一处理上游响应的修改
+// 1. 重写 302 重定向 Location 头（补回网关前缀）
+// 2. 拦截 /configs API JSON 响应，重写 external-controller 为网关地址
+// 3. 拦截 HTML 页面，注入 metacubexd 自动配置脚本
 func modifyResponse(resp *http.Response) error {
+	rewriteRedirectLocation(resp)
+
+	ct := resp.Header.Get("Content-Type")
+
+	// 拦截 /configs API 响应，重写 external-controller
+	if strings.Contains(ct, "application/json") {
+		return rewriteExternalController(resp)
+	}
+
+	// 拦截 HTML 页面，注入自动配置脚本
+	if strings.Contains(ct, "text/html") && resp.StatusCode == 200 {
+		return injectAutoConfig(resp)
+	}
+
+	return nil
+}
+
+// rewriteRedirectLocation 重写 302 重定向的 Location 头，
+// 将 mihomo 返回的绝对路径（如 /ui/）补回网关前缀（如 /app/clashlite-dev/ui/）
+func rewriteRedirectLocation(resp *http.Response) {
 	loc := resp.Header.Get("Location")
 	if loc != "" && strings.HasPrefix(loc, "/") && !strings.HasPrefix(loc, gatewayPrefix) {
 		newLoc := gatewayPrefix + loc
 		resp.Header.Set("Location", newLoc)
 		log.Printf("重写重定向: %s -> %s", loc, newLoc)
 	}
+}
 
-	ct := resp.Header.Get("Content-Type")
-	if !strings.Contains(ct, "text/html") || resp.StatusCode != 200 {
+// rewriteExternalController 拦截 mihomo /configs API 的 JSON 响应，
+// 将 external-controller 字段从 "127.0.0.1:9090" 改为网关地址，
+// 使 metacubexd 等前端面板能自动识别正确的后端地址
+func rewriteExternalController(resp *http.Response) error {
+	// 仅处理 /configs 端点
+	reqPath := resp.Request.URL.Path
+	if reqPath != "/configs" {
 		return nil
 	}
 
-	var bodyBytes []byte
-	var err error
-
-	ce := resp.Header.Get("Content-Encoding")
-	if strings.Contains(ce, "gzip") {
-		gz, gzErr := gzip.NewReader(resp.Body)
-		if gzErr != nil {
-			return gzErr
-		}
-		bodyBytes, err = io.ReadAll(gz)
-		gz.Close()
-	} else {
-		bodyBytes, err = io.ReadAll(resp.Body)
-	}
-	resp.Body.Close()
-
+	bodyBytes, err := readResponseBody(resp)
 	if err != nil {
 		return err
 	}
 
+	// 从请求中获取 Host，构造网关地址
+	host := resp.Request.Host
+	if host == "" {
+		host = resp.Request.Header.Get("Host")
+	}
+	if host == "" {
+		host = "127.0.0.1:5666"
+	}
+
+	// 判断协议：fnOS 网关通常走 HTTP，若上游是 HTTPS 则跟随
+	scheme := "http"
+	if resp.Request.TLS != nil {
+		scheme = "https"
+	}
+	gatewayURL := scheme + "://" + host + gatewayPrefix
+
+	// 解析 JSON 并重写 external-controller 字段
+	var cfg map[string]interface{}
+	if err := json.Unmarshal(bodyBytes, &cfg); err != nil {
+		// JSON 解析失败，原样返回不修改
+		resp.Body = io.NopCloser(strings.NewReader(string(bodyBytes)))
+		return nil
+	}
+
+	if _, ok := cfg["external-controller"]; ok {
+		cfg["external-controller"] = gatewayURL
+	}
+
+	modified, err := json.Marshal(cfg)
+	if err != nil {
+		return err
+	}
+
+	resp.Header.Del("Content-Encoding")
+	resp.Header.Del("Transfer-Encoding")
+	resp.Body = io.NopCloser(strings.NewReader(string(modified)))
+	resp.ContentLength = int64(len(modified))
+	resp.Header.Set("Content-Length", strconv.Itoa(len(modified)))
+
+	log.Printf("已重写 /configs 响应: external-controller -> %s", gatewayURL)
+	return nil
+}
+
+// injectAutoConfig 在 metacubexd 的 HTML 页面中注入自动配置脚本，
+// 仅在 localStorage 中没有已配置的 endpoint 时才写入默认值，
+// 解决 metacubexd 首次加载时默认连接 127.0.0.1:9090 的问题
+func injectAutoConfig(resp *http.Response) error {
+	bodyBytes, err := readResponseBody(resp)
+	if err != nil {
+		return err
+	}
+
+	// 构造注入脚本：设置 metacubexd 的默认 endpoint 为网关地址
 	injectScript := fmt.Sprintf(
 		`<script id="clashlite-dev-auto-config">(function(){`+
 			`var p="%s";var b=window.location.origin+p;var s="%s";`+
@@ -170,6 +239,24 @@ func modifyResponse(resp *http.Response) error {
 	resp.Header.Set("Content-Length", strconv.Itoa(len(modified)))
 
 	log.Printf("已注入 metacubexd 自动配置脚本 (后端: %s)", gatewayPrefix)
-
 	return nil
+}
+
+// readResponseBody 读取响应体，自动处理 gzip 解压
+func readResponseBody(resp *http.Response) ([]byte, error) {
+	ce := resp.Header.Get("Content-Encoding")
+	if strings.Contains(ce, "gzip") {
+		gz, err := gzip.NewReader(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+		defer gz.Close()
+		bodyBytes, err := io.ReadAll(gz)
+		resp.Body.Close()
+		return bodyBytes, err
+	}
+
+	bodyBytes, err := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	return bodyBytes, err
 }
