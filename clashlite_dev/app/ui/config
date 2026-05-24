@@ -7,7 +7,7 @@
             "protocol": "",
             "gatewaySocket": "clashlite-dev.sock",
             "gatewayPrefix": "/app/clashlite-dev",
-            "url": "/app/clashlite-dev/ui",
+            "url": "/app/clashlite-dev/ui/",
             "allUsers": true,
             "control": {
                 "accessPerm": "editable"

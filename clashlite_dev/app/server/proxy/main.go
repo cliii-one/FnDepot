@@ -52,6 +52,12 @@ func main() {
 	}
 
 	proxy.ModifyResponse = func(resp *http.Response) error {
+		loc := resp.Header.Get("Location")
+		if loc != "" && strings.HasPrefix(loc, "/") && !strings.HasPrefix(loc, gatewayPrefix) {
+			newLoc := gatewayPrefix + loc
+			resp.Header.Set("Location", newLoc)
+			log.Printf("重写重定向: %s -> %s", loc, newLoc)
+		}
 		return nil
 	}
 
