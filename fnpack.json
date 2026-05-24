@@ -124,7 +124,7 @@
       }
     }
   },
-  "clashlite_dev": {
+  "clashlite-dev": {
     "display_name": "ClashLite Dev",
     "platform": [
       "x86",
@@ -142,10 +142,10 @@
     "changelog": "网关测试版：采用飞牛统一网关反代模式，通过 Unix Socket 访问 UI，不再直接暴露 9090 端口",
     "arch_diff": {
       "x86": {
-        "download_url": "https://github.com/cliii-one/FnDepot/releases/download/clashlite-dev-v1.0.0/clashlite_dev-X86.fpk"
+        "download_url": "https://github.com/cliii-one/FnDepot/releases/download/clashlite-dev-v1.0.0/clashlite-dev-X86.fpk"
       },
       "arm": {
-        "download_url": "https://github.com/cliii-one/FnDepot/releases/download/clashlite-dev-v1.0.0/clashlite_dev-ARM.fpk"
+        "download_url": "https://github.com/cliii-one/FnDepot/releases/download/clashlite-dev-v1.0.0/clashlite-dev-ARM.fpk"
       }
     }
   }

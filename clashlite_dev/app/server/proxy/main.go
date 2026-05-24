@@ -15,15 +15,15 @@ import (
 )
 
 const (
-	gatewayPrefix   = "/app/clashlite_dev"
+	gatewayPrefix   = "/app/clashlite-dev"
 	upstreamBaseURL = "http://127.0.0.1:9090"
-	socketFileName  = "clashlite_dev.sock"
+	socketFileName  = "clashlite-dev.sock"
 )
 
 func main() {
 	appDest := os.Getenv("TRIM_APPDEST")
 	if appDest == "" {
-		appDest = "/var/apps/clashlite_dev/target"
+		appDest = "/var/apps/clashlite-dev/target"
 	}
 	socketPath := appDest + "/" + socketFileName
 

@@ -116,7 +116,7 @@ start_gateway_proxy() {
     printf "%s" "${pid}" > "${PROXY_PID_FILE}"
     log_msg "gateway-proxy started with PID ${pid}"
 
-    local socket_path="${TRIM_APPDEST}/clashlite_dev.sock"
+    local socket_path="${TRIM_APPDEST}/clashlite-dev.sock"
     local count=0
     while [ ${count} -lt 5 ]; do
         if [ -S "${socket_path}" ]; then
@@ -201,7 +201,7 @@ stop_gateway_proxy() {
         sleep 1
     fi
 
-    local socket_path="${TRIM_APPDEST}/clashlite_dev.sock"
+    local socket_path="${TRIM_APPDEST}/clashlite-dev.sock"
     rm -f "${socket_path}"
     return 0
 }

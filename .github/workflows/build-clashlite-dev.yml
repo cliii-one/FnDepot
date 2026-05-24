@@ -159,13 +159,13 @@ jobs:
                       full = os.path.join(root, f)
                       tar.add(full, arcname=os.path.relpath(full, 'app'))
           "
-          tar -cf clashlite_dev.tar manifest ICON.PNG ICON_256.PNG cmd/ config/ wizard/ app.tgz
-          gzip -1 clashlite_dev.tar && rm -f app.tgz
+          tar -cf clashlite-dev.tar manifest ICON.PNG ICON_256.PNG cmd/ config/ wizard/ app.tgz
+          gzip -1 clashlite-dev.tar && rm -f app.tgz
 
           if [ "${{ matrix.arch }}" = "x86_64" ]; then
-            mv clashlite_dev.tar.gz clashlite_dev-X86.fpk
+            mv clashlite-dev.tar.gz clashlite-dev-X86.fpk
           else
-            mv clashlite_dev.tar.gz clashlite_dev-ARM.fpk
+            mv clashlite-dev.tar.gz clashlite-dev-ARM.fpk
           fi
           echo "构建完成: $(ls -h *.fpk)"
 
@@ -173,7 +173,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: clashlite-dev-${{ matrix.arch }}
-          path: clashlite_dev/clashlite_dev-*.fpk
+          path: clashlite_dev/clashlite-dev-*.fpk
           retention-days: 30
 
   release:
@@ -237,8 +237,8 @@ jobs:
 
             | 文件 | 架构 | 适用设备 |
             |------|------|----------|
-            | `clashlite_dev-X86.fpk` | x86_64 | Intel/AMD NAS |
-            | `clashlite_dev-ARM.fpk` | arm64 | ARM NAS |
+            | `clashlite-dev-X86.fpk` | x86_64 | Intel/AMD NAS |
+            | `clashlite-dev-ARM.fpk` | arm64 | ARM NAS |
 
             ---
             构建时间：${{ steps.info.outputs.build_time }}
@@ -246,7 +246,7 @@ jobs:
       - name: 更新 README 编译时间
         run: |
           git pull --rebase origin main
-          python3 scripts/update-readme-time.py clashlite_dev "${{ steps.info.outputs.build_time }}"
+          python3 scripts/update-readme-time.py clashlite-dev "${{ steps.info.outputs.build_time }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git diff --quiet README.md && echo "无变更" && exit 0
@@ -259,7 +259,7 @@ jobs:
         if: github.event.inputs.update_fnpack == 'true'
         run: |
           git pull --rebase origin main
-          python3 scripts/update-fnpack.py clashlite_dev "${{ steps.info.outputs.tag }}" "${{ github.repository }}"
+          python3 scripts/update-fnpack.py clashlite-dev "${{ steps.info.outputs.tag }}" "${{ github.repository }}"
           git diff --quiet fnpack.json && echo "fnpack.json 无变更" && exit 0
           git add fnpack.json
           git commit -m "docs: 更新 ClashLite Dev 版本信息到 fnpack.json"

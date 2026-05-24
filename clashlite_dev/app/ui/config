@@ -1,13 +1,13 @@
 {
     ".url": {
-        "clashlite_dev.Application": {
+        "clashlite-dev.Application": {
             "title": "ClashLite Dev",
             "icon": "images/icon_{0}.png",
             "type": "iframe",
             "protocol": "",
-            "gatewaySocket": "clashlite_dev.sock",
-            "gatewayPrefix": "/app/clashlite_dev",
-            "url": "/app/clashlite_dev/ui",
+            "gatewaySocket": "clashlite-dev.sock",
+            "gatewayPrefix": "/app/clashlite-dev",
+            "url": "/app/clashlite-dev/ui",
             "allUsers": true,
             "control": {
                 "accessPerm": "editable"

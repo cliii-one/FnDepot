@@ -2,10 +2,10 @@
     "data-share": {
         "shares": [
             {
-                "name": "clashlite_dev",
+                "name": "clashlite-dev",
                 "permission": {
                     "rw": [
-                        "clashlite_dev"
+                        "clashlite-dev"
                     ]
                 }
             }
