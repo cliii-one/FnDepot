@@ -3,11 +3,15 @@
         "substore.Application": {
             "title": "SubStore",
             "icon": "images/icon-{0}.png",
-            "type": "url",
-            "protocol": "http",
-            "port": "8001",
-            "url": "/",
-            "allUsers": true
+            "type": "iframe",
+            "protocol": "",
+            "gatewaySocket": "substore.sock",
+            "gatewayPrefix": "/app/substore",
+            "url": "/app/substore/",
+            "allUsers": true,
+            "control": {
+                "accessPerm": "editable"
+            }
         }
     }
 }

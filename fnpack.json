@@ -80,22 +80,22 @@
       "x86",
       "arm"
     ],
-    "version": "1.0.0",
-    "desc": "基于 Sub-Store 的飞牛 fnOS 原生应用，支持多种代理客户端格式的订阅转换和管理",
+    "version": "2.0.0",
+    "desc": "基于 Sub-Store 的飞牛 fnOS 原生应用，通过统一网关访问，支持多种代理客户端格式的订阅转换和管理",
     "distributor": "cliii-one",
     "distributor_url": "https://github.com/cliii-one/FnDepot/tree/main/substore",
     "bug_report_url": "https://github.com/cliii-one/FnDepot/issues",
     "labels": "工具,效率",
     "isdocker": "false",
-    "size": "45",
+    "size": "50",
     "install_type": "存储空间",
-    "changelog": "首次上线",
+    "changelog": "v2.0.0 采用飞牛统一网关反代模式，通过 Unix Socket 访问 UI，不再直接暴露 8001 端口",
     "arch_diff": {
       "x86": {
-        "download_url": "https://github.com/cliii-one/FnDepot/releases/download/substore-v1.0.0/substore-X86.fpk"
+        "download_url": "https://github.com/cliii-one/FnDepot/releases/download/substore-v2.0.0/substore-X86.fpk"
       },
       "arm": {
-        "download_url": "https://github.com/cliii-one/FnDepot/releases/download/substore-v1.0.0/substore-ARM.fpk"
+        "download_url": "https://github.com/cliii-one/FnDepot/releases/download/substore-v2.0.0/substore-ARM.fpk"
       }
     }
   },

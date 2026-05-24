@@ -16,7 +16,7 @@
             },
             {
                 "type": "tips",
-                "helpText": "API 路径用于访问后端接口，默认 /api。可自定义为随机路径增强安全性，如 /xK9m2p,则后端地址为：http://飞牛IP:8001/xK9m2p"
+                "helpText": "API 路径用于访问后端接口，默认 /api。可自定义为随机路径增强安全性，如 /xK9m2p，则后端地址为：http://飞牛IP:5666/app/substore/xK9m2p"
             }
         ]
     }

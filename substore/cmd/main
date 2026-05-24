@@ -1,55 +1,33 @@
 #!/bin/bash
-# ============================================================
-# SubStore for fnOS - 主服务管理脚本
-# ============================================================
-# 飞牛系统通过此脚本控制应用的 启动(start) / 停止(stop) / 状态查询(status)
-#
-# TRIM 环境变量说明（飞牛系统自动注入）：
-#   TRIM_APPDEST    - 应用安装目录（app.tgz 解压后的目标路径）
-#   TRIM_PKGVAR     - 应用数据目录（持久化存储，升级不丢失）
-#   TRIM_PKGETC     - 应用配置目录（存放 config.json 等配置文件）
-#   TRIM_SERVICE_PORT - 用户在向导中配置的服务端口
-#   TRIM_USERNAME   - 应用运行用户名（由 config/privilege 定义）
-#   TRIM_GROUPNAME  - 应用运行用户组（由 config/privilege 定义）
-#   TRIM_TEMP_LOGFILE - 临时日志文件路径（错误信息写入此处供前端展示）
-# ============================================================
+set -euo pipefail
 
-# ---- 路径配置 ----
-NODE_BIN="${TRIM_APPDEST}/server/node"                   # Node.js 二进制文件
-SUBSTORE_JS="${TRIM_APPDEST}/server/sub-store.min.js"    # Sub-Store 后端脚本（esbuild 打包）
-DATA_DIR="${TRIM_PKGVAR}"                                # 数据目录（sub-store.json、root.json）
-LOG_FILE="${TRIM_PKGVAR}/substore.log"                   # 运行日志
-PID_FILE="${TRIM_PKGVAR}/substore.pid"                    # 进程 PID 文件
-CONFIG_FILE="${TRIM_PKGVAR}/config.json"                  # 用户配置文件
+NODE_BIN="${TRIM_APPDEST}/server/node"
+SUBSTORE_JS="${TRIM_APPDEST}/server/sub-store.min.js"
+DATA_DIR="${TRIM_PKGVAR}"
+LOG_FILE="${TRIM_PKGVAR}/substore.log"
+PID_FILE="${TRIM_PKGVAR}/substore.pid"
+PROXY_PID_FILE="${TRIM_PKGVAR}/gateway-proxy.pid"
+CONFIG_FILE="${TRIM_PKGVAR}/config.json"
+GATEWAY_PROXY_BIN="${TRIM_APPDEST}/server/gateway-proxy"
 
-# ---- 读取自定义 API 路径 ----
-# 用户可在 config.json 中配置 api_path 字段来隐藏 API 接口路径
-# 默认值为 /api，即 http://ip:port/api/xxx
-# 如果改为 /xK9m2p，则接口地址变为 http://ip:port/xK9m2p/xxx
 API_PATH="/api"
 if [ -f "${CONFIG_FILE}" ]; then
-    # 从 JSON 中提取 api_path 字段值
     _p=$(cat "${CONFIG_FILE}" 2>/dev/null | grep -o '"api_path"[[:space:]]*:[[:space:]]*"[^"]*"' | sed 's/.*"api_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/')
     [ -n "$_p" ] && API_PATH="$_p"
 fi
-# 确保路径以 / 开头，不以 / 结尾
 case "$API_PATH" in /*) ;; *) API_PATH="/$API_PATH" ;; esac
 API_PATH="${API_PATH%/}"
 
-# ---- Sub-Store 后端环境变量 ----
-export SUB_STORE_DATA_BASE_PATH="${DATA_DIR}"              # 数据文件存储路径
-export SUB_STORE_BACKEND_API_PORT="${TRIM_SERVICE_PORT:-8001}"  # API 监听端口（固定 8001）
-export SUB_STORE_BACKEND_API_HOST="::"                     # 监听所有 IPv4 + IPv6 地址
-export SUB_STORE_BACKEND_MERGE="true"                      # 启用前后端合并模式
-export SUB_STORE_FRONTEND_PATH="${TRIM_APPDEST}/www"       # 前端静态文件目录
-export SUB_STORE_FRONTEND_BACKEND_PATH="${API_PATH}"       # API 路由前缀
-export SUB_STORE_X_POWERED_BY="Sub-Store"                  # HTTP 响应头
-export SUB_STORE_BODY_JSON_LIMIT="10mb"                    # 请求体大小限制
-export NODE_NO_WARNINGS=1                                  # 抑制 Node.js 警告输出
+export SUB_STORE_DATA_BASE_PATH="${DATA_DIR}"
+export SUB_STORE_BACKEND_API_PORT="8001"
+export SUB_STORE_BACKEND_API_HOST="127.0.0.1"
+export SUB_STORE_BACKEND_MERGE="true"
+export SUB_STORE_FRONTEND_PATH="${TRIM_APPDEST}/www"
+export SUB_STORE_FRONTEND_BACKEND_PATH="${API_PATH}"
+export SUB_STORE_X_POWERED_BY="Sub-Store"
+export SUB_STORE_BODY_JSON_LIMIT="10mb"
+export NODE_NO_WARNINGS=1
 
-# ============================================================
-# 初始化数据目录
-# ============================================================
 ensure_dirs() {
     mkdir -p "${DATA_DIR}"
     [ -f "${DATA_DIR}/sub-store.json" ] || echo '{}' > "${DATA_DIR}/sub-store.json"
@@ -57,123 +35,157 @@ ensure_dirs() {
     chown -R "${TRIM_USERNAME:-substore}:${TRIM_GROUPNAME:-substore}" "${DATA_DIR}" 2>/dev/null || true
 }
 
-# ============================================================
-# 启动服务
-# ============================================================
-start_process() {
-    # 已经在运行则跳过
-    if status; then
+start_substore() {
+    if check_substore_status; then
         return 0
     fi
 
     ensure_dirs
 
-    # 前置检查：Node.js 二进制是否存在且可执行
     if [ ! -x "${NODE_BIN}" ]; then
         echo "Node.js 运行时未找到: ${NODE_BIN}" > "${TRIM_TEMP_LOGFILE}" 2>/dev/null
         return 1
     fi
 
-    # 前置检查：Sub-Store 后端脚本是否存在
     if [ ! -f "${SUBSTORE_JS}" ]; then
         echo "Sub-Store 后端脚本未找到: ${SUBSTORE_JS}" > "${TRIM_TEMP_LOGFILE}" 2>/dev/null
         return 1
     fi
 
-    # 切换到 server 目录（Sub-Store 需要在此目录下运行）
     cd "${TRIM_APPDEST}/server"
 
     exec -a "SubStore" "${NODE_BIN}" \
         "${SUBSTORE_JS}" \
         >> "${LOG_FILE}" 2>&1 &
 
-    # 记录进程 PID，供 stop/status 使用
     printf "%s" "$!" > "${PID_FILE}"
+
+    local count=0
+    while [ ${count} -lt 10 ]; do
+        if curl -s http://127.0.0.1:8001 > /dev/null 2>&1; then
+            return 0
+        fi
+        sleep 1
+        count=$((count + 1))
+    done
     return 0
 }
 
-# ============================================================
-# 停止服务
-# ============================================================
-stop_process() {
-    if [ -r "${PID_FILE}" ]; then
-        pid=$(head -n 1 "${PID_FILE}" | tr -d '[:space:]')
-
-        # 检查进程是否还存活
-        if ! check_process "${pid}"; then
-            rm -f "${PID_FILE}"
-            return
-        fi
-
-        # 先发送 SIGTERM（优雅退出，让 Node.js 处理清理逻辑）
-        kill -TERM ${pid} >> ${LOG_FILE} 2>&1
-
-        # 等待最多 10 秒让进程自行退出
-        local count=0
-        while check_process "${pid}" && [ $count -lt 10 ]; do
-            sleep 1
-            count=$((count + 1))
-        done
-
-        # 超时仍未退出，强制 SIGKILL
-        if check_process "${pid}"; then
-            kill -KILL "${pid}"
-            sleep 1
-            rm -f "${PID_FILE}"
-        fi
+start_gateway_proxy() {
+    if check_proxy_status; then
+        return 0
     fi
 
-    # 兜底：通过进程名匹配清理残留进程
-    pkill -f "node.*sub-store.min.js" 2>/dev/null || true
-
-    return 0
-}
-
-# ============================================================
-# 检查进程是否存活
-# ============================================================
-check_process() {
-    local pid=$1
-    if kill -0 "${pid}" 2>/dev/null; then
-        return 0
-    else
+    if [ ! -x "${GATEWAY_PROXY_BIN}" ]; then
+        echo "网关反向代理程序未找到: ${GATEWAY_PROXY_BIN}" > "${TRIM_TEMP_LOGFILE}" 2>/dev/null
         return 1
     fi
+
+    "${GATEWAY_PROXY_BIN}" >> "${LOG_FILE}" 2>&1 &
+    printf "%s" "$!" > "${PROXY_PID_FILE}"
+
+    local socket_path="${TRIM_APPDEST}/substore.sock"
+    local count=0
+    while [ ${count} -lt 5 ]; do
+        if [ -S "${socket_path}" ]; then
+            return 0
+        fi
+        sleep 1
+        count=$((count + 1))
+    done
+    return 0
 }
 
-# ============================================================
-# 查询服务状态（返回 0=运行中，3=已停止）
-# ============================================================
-status() {
-    if [ -f "${PID_FILE}" ]; then
+stop_substore() {
+    if [ -r "${PID_FILE}" ]; then
+        local pid
         pid=$(head -n 1 "${PID_FILE}" | tr -d '[:space:]')
-        if check_process "${pid}"; then
+
+        if kill -0 "${pid}" 2>/dev/null; then
+            kill -TERM ${pid} >> ${LOG_FILE} 2>&1
+
+            local count=0
+            while kill -0 "${pid}" 2>/dev/null && [ ${count} -lt 10 ]; do
+                sleep 1
+                count=$((count + 1))
+            done
+
+            if kill -0 "${pid}" 2>/dev/null; then
+                kill -KILL ${pid}
+            fi
+        fi
+        rm -f "${PID_FILE}"
+    fi
+
+    pkill -f "node.*sub-store.min.js" 2>/dev/null || true
+    return 0
+}
+
+stop_gateway_proxy() {
+    if [ -r "${PROXY_PID_FILE}" ]; then
+        local pid
+        pid=$(head -n 1 "${PROXY_PID_FILE}" | tr -d '[:space:]')
+
+        if kill -0 "${pid}" 2>/dev/null; then
+            kill -TERM ${pid} 2>/dev/null || true
+
+            local count=0
+            while kill -0 "${pid}" 2>/dev/null && [ ${count} -lt 5 ]; do
+                sleep 1
+                count=$((count + 1))
+            done
+
+            if kill -0 "${pid}" 2>/dev/null; then
+                kill -KILL ${pid} 2>/dev/null || true
+            fi
+        fi
+        rm -f "${PROXY_PID_FILE}"
+    fi
+
+    rm -f "${TRIM_APPDEST}/substore.sock"
+    return 0
+}
+
+check_substore_status() {
+    if [ -f "${PID_FILE}" ]; then
+        local pid
+        pid=$(head -n 1 "${PID_FILE}" | tr -d '[:space:]')
+        if kill -0 "${pid}" 2>/dev/null; then
             return 0
         else
-            # PID 文件存在但进程已死，清理残留
             rm -f "${PID_FILE}"
         fi
     fi
     return 1
 }
 
-# ============================================================
-# 入口：飞牛系统通过 $1 参数调用 start/stop/status
-# ============================================================
+check_proxy_status() {
+    if [ -f "${PROXY_PID_FILE}" ]; then
+        local pid
+        pid=$(head -n 1 "${PROXY_PID_FILE}" | tr -d '[:space:]')
+        if kill -0 "${pid}" 2>/dev/null; then
+            return 0
+        else
+            rm -f "${PROXY_PID_FILE}"
+        fi
+    fi
+    return 1
+}
+
 case $1 in
 start)
-    start_process
-    exit $?
+    start_substore
+    start_gateway_proxy
     ;;
 stop)
-    stop_process
-    exit $?
+    stop_gateway_proxy
+    stop_substore
     ;;
 status)
-    if status; then
-        exit 0    # 0 = 正在运行
+    if check_substore_status && check_proxy_status; then
+        exit 0
     else
-        exit 3    # 3 = 已停止
+        exit 3
     fi
     ;;
 *)
