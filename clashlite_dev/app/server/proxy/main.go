@@ -23,9 +23,13 @@ const (
 	upstreamBaseURL = "http://127.0.0.1:9090"
 	socketFileName  = "clashlite-dev.sock"
 	configJSPath    = "/ui/config.js"
+	defaultPort     = "5666"
 )
 
-var gatewaySecret = ""
+var (
+	gatewaySecret = ""
+	gatewayPort   = defaultPort
+)
 
 func main() {
 	appDest := os.Getenv("TRIM_APPDEST")
@@ -35,6 +39,9 @@ func main() {
 	socketPath := appDest + "/" + socketFileName
 
 	gatewaySecret = os.Getenv("GATEWAY_SECRET")
+	if p := os.Getenv("GATEWAY_PORT"); p != "" {
+		gatewayPort = p
+	}
 
 	upstreamURL, err := url.Parse(upstreamBaseURL)
 	if err != nil {
@@ -68,7 +75,6 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	// 拦截 config.js 请求，动态生成 metacubexd 默认后端地址配置
 	mux.HandleFunc(gatewayPrefix+configJSPath, handleConfigJS)
 	mux.Handle("/", proxy)
 
@@ -90,6 +96,7 @@ func main() {
 
 	log.Printf("Unix Socket 成功监听并赋权 0666: %s", socketPath)
 	log.Printf("网关前缀: %s -> 上游: %s", gatewayPrefix, upstreamBaseURL)
+	log.Printf("网关端口: %s", gatewayPort)
 	log.Printf("自动配置密钥: %s", func() string {
 		if gatewaySecret != "" {
 			return "已设置"
@@ -120,6 +127,26 @@ func main() {
 	fmt.Println("网关反向代理已优雅退出")
 }
 
+// buildGatewayURL 根据请求信息构造完整的网关地址，
+// fnOS 网关转发到 Unix Socket 时 Host 头可能丢失端口号，
+// 因此通过 GATEWAY_PORT 环境变量补充端口信息
+func buildGatewayURL(host string, isTLS bool) string {
+	if host == "" {
+		host = "127.0.0.1:" + gatewayPort
+	}
+
+	// Host 不含端口时，补上 GATEWAY_PORT
+	if !strings.Contains(host, ":") {
+		host = host + ":" + gatewayPort
+	}
+
+	scheme := "http"
+	if isTLS {
+		scheme = "https"
+	}
+	return scheme + "://" + host + gatewayPrefix
+}
+
 // handleConfigJS 动态生成 metacubexd 的 config.js，
 // 利用 metacubexd 原生的 __METACUBEXD_CONFIG__ 机制设置默认后端地址，
 // 使前端输入框自动填充网关地址而非 127.0.0.1:9090
@@ -128,15 +155,7 @@ func handleConfigJS(w http.ResponseWriter, r *http.Request) {
 	if host == "" {
 		host = r.Header.Get("Host")
 	}
-	if host == "" {
-		host = "127.0.0.1:5666"
-	}
-
-	scheme := "http"
-	if r.TLS != nil {
-		scheme = "https"
-	}
-	gatewayURL := scheme + "://" + host + gatewayPrefix
+	gatewayURL := buildGatewayURL(host, r.TLS != nil)
 
 	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
@@ -152,7 +171,6 @@ func modifyResponse(resp *http.Response) error {
 
 	ct := resp.Header.Get("Content-Type")
 
-	// 拦截 /configs API 响应，重写 external-controller
 	if strings.Contains(ct, "application/json") {
 		return rewriteExternalController(resp)
 	}
@@ -189,15 +207,7 @@ func rewriteExternalController(resp *http.Response) error {
 	if host == "" {
 		host = resp.Request.Header.Get("Host")
 	}
-	if host == "" {
-		host = "127.0.0.1:5666"
-	}
-
-	scheme := "http"
-	if resp.Request.TLS != nil {
-		scheme = "https"
-	}
-	gatewayURL := scheme + "://" + host + gatewayPrefix
+	gatewayURL := buildGatewayURL(host, resp.Request.TLS != nil)
 
 	var cfg map[string]interface{}
 	if err := json.Unmarshal(bodyBytes, &cfg); err != nil {
