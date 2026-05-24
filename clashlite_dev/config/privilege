@@ -1,0 +1,7 @@
+{
+    "defaults": {
+        "run-as": "root"
+    },
+    "username": "clashlite_dev",
+    "groupname": "clashlite_dev"
+}

@@ -1,0 +1,14 @@
+{
+    "data-share": {
+        "shares": [
+            {
+                "name": "clashlite_dev",
+                "permission": {
+                    "rw": [
+                        "clashlite_dev"
+                    ]
+                }
+            }
+        ]
+    }
+}

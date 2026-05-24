@@ -1,0 +1,59 @@
+[
+    {
+        "stepTitle": "ClashLite Dev 配置",
+        "items": [
+            {
+                "type": "tips",
+                "helpText": "修改配置后保存，将自动更新 mihomo 配置并重启服务。留空表示不修改当前值。"
+            },
+            {
+                "type": "radio",
+                "field": "wizard_config_profile",
+                "label": "切换配置方案",
+                "initValue": "",
+                "options": [
+                    {"label": "不切换（保持当前）", "value": ""},
+                    {"label": "OneSmart 融合版（单订阅源，全自动选路）", "value": "OneSmart"},
+                    {"label": "OneSmartPro 专业版（三订阅源，四层架构）", "value": "OneSmartPro"}
+                ]
+            },
+            {
+                "type": "text",
+                "field": "wizard_secret",
+                "label": "API 访问密钥",
+                "initValue": "",
+                "helpText": "修改密钥（留空不修改）"
+            }
+        ]
+    },
+    {
+        "stepTitle": "订阅源配置",
+        "items": [
+            {
+                "type": "tips",
+                "helpText": "修改订阅源地址。OneSmart 只需第一个链接，OneSmartPro 需要三个。留空不修改。"
+            },
+            {
+                "type": "text",
+                "field": "wizard_provider_url_1",
+                "label": "订阅源地址",
+                "initValue": "",
+                "helpText": "留空不修改"
+            },
+            {
+                "type": "text",
+                "field": "wizard_provider_url_2",
+                "label": "备用订阅源（仅 OneSmartPro）",
+                "initValue": "",
+                "helpText": "留空不修改"
+            },
+            {
+                "type": "text",
+                "field": "wizard_provider_url_3",
+                "label": "落地订阅源（仅 OneSmartPro）",
+                "initValue": "",
+                "helpText": "留空不修改"
+            }
+        ]
+    }
+]

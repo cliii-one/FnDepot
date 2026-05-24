@@ -1,0 +1,59 @@
+[
+    {
+        "stepTitle": "欢迎安装 ClashLite Dev（网关测试版）",
+        "items": [
+            {
+                "type": "tips",
+                "helpText": "ClashLite Dev 是网关测试版，通过飞牛统一网关访问 UI，无需暴露 9090 端口。基于 vernesong/mihomo (Alpha-Smart) 内核，集成 metacubexd 管理面板。"
+            },
+            {
+                "type": "radio",
+                "field": "wizard_config_profile",
+                "label": "配置方案",
+                "initValue": "OneSmart",
+                "options": [
+                    {"label": "OneSmart 融合版（单订阅源，全自动选路，开箱即用）", "value": "OneSmart"},
+                    {"label": "OneSmartPro 专业版（三订阅源，四层架构，分地区端口）", "value": "OneSmartPro"}
+                ],
+                "rules": [{"required": true, "message": "请选择配置方案"}]
+            },
+            {
+                "type": "text",
+                "field": "wizard_secret",
+                "label": "API 访问密钥",
+                "initValue": "yyds666",
+                "helpText": "保护 mihomo API 和代理认证（默认 yyds666）"
+            }
+        ]
+    },
+    {
+        "stepTitle": "订阅源配置",
+        "items": [
+            {
+                "type": "tips",
+                "helpText": "填写你的机场订阅链接。OneSmart 只需一个链接，OneSmartPro 需要三个。留空则稍后在面板中配置。"
+            },
+            {
+                "type": "text",
+                "field": "wizard_provider_url_1",
+                "label": "订阅源地址",
+                "initValue": "",
+                "helpText": "你的机场订阅链接（必填）"
+            },
+            {
+                "type": "text",
+                "field": "wizard_provider_url_2",
+                "label": "备用订阅源（仅 OneSmartPro）",
+                "initValue": "",
+                "helpText": "OneSmart 可留空，会自动复用上面的链接"
+            },
+            {
+                "type": "text",
+                "field": "wizard_provider_url_3",
+                "label": "落地订阅源（仅 OneSmartPro）",
+                "initValue": "",
+                "helpText": "OneSmartPro 专用，OneSmart 用户留空"
+            }
+        ]
+    }
+]

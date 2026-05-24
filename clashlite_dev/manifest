@@ -1,0 +1,18 @@
+appname               = clashlite_dev
+version               = 1.0.0
+display_name          = ClashLite Dev
+desc                  = "基于 vernesong/mihomo 内核的代理管理面板（网关测试版），通过飞牛统一网关访问，无需暴露端口"
+platform              = arm
+source                = thirdparty
+maintainer            = cliii_one
+maintainer_url        = https://github.com/cliii-one/FnStore
+distributor           = cliii-one
+distributor_url       = https://github.com/cliii-one/FnDepot
+os_min_version        = 1.1.8
+desktop_uidir         = ui
+desktop_applaunchname = clashlite_dev.Application
+ctl_stop              = true
+disable_authorization_path = false
+changelog             = """
+v1.0.0 网关测试版：采用飞牛统一网关反代模式，通过 Unix Socket 访问 UI，不再直接暴露 9090 端口
+"""
