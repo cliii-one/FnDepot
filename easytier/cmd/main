@@ -72,20 +72,18 @@ start_core() {
     NETWORK_SECRET=$(read_config network_secret)
     VIRTUAL_IP=$(read_config virtual_ip)
     PUBLIC_SERVER=$(read_config public_server)
-    ENABLE_ENCRYPTION=$(read_config enable_encryption)
-    LATENCY_FIRST=$(read_config latency_first)
 
     local args=()
-    args+=("-n" "${NETWORK_NAME}")
-    [ -n "${NETWORK_SECRET}" ] && args+=("-s" "${NETWORK_SECRET}")
+    args+=("--network-name" "${NETWORK_NAME}")
+    [ -n "${NETWORK_SECRET}" ] && args+=("--network-secret" "${NETWORK_SECRET}")
     args+=("-i" "${VIRTUAL_IP}")
     args+=("-e" "${PUBLIC_SERVER}")
     args+=("-w" "udp://127.0.0.1:22020/admin")
-    [ "${ENABLE_ENCRYPTION}" = "true" ] && args+=("--enable-encryption")
-    [ "${LATENCY_FIRST}" = "true" ] && args+=("--latency-first")
 
     log_msg "Starting easytier-core with args: ${args[*]}"
 
+    export ET_STATE_DIR="${TRIM_PKGVAR}"
+    cd "${TRIM_PKGVAR}"
     "${EASYTIER_DIR}/easytier-core" "${args[@]}" >> "${LOG_FILE}" 2>&1 &
     local pid=$!
     printf "%s" "${pid}" > "${CORE_PID_FILE}"
@@ -116,7 +114,10 @@ start_web() {
 
     log_msg "Starting easytier-web-embed ..."
 
+    export ET_WEB_DB="${TRIM_PKGVAR}/et.db"
+    cd "${TRIM_PKGVAR}"
     "${EASYTIER_DIR}/easytier-web-embed" \
+        --db "${TRIM_PKGVAR}/et.db" \
         --api-server-port 11211 \
         --api-host "http://127.0.0.1:11211" \
         --config-server-port 22020 \
