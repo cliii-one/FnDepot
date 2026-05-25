@@ -17,7 +17,7 @@ on:
         options: ['true', 'false']
 
 env:
-  MIHOMO_REPO: vernesong/mihomo
+  MIHOMO_REPO: MetaCubeX/mihomo
   MIHOMO_TAG: Prerelease-Alpha
 
 jobs:
@@ -70,7 +70,7 @@ jobs:
         run: |
           API_URL="https://api.github.com/repos/${{ env.MIHOMO_REPO }}/releases/tags/${{ env.MIHOMO_TAG }}"
           RELEASE=$(curl -sL -H "Authorization: token $GH_TOKEN" "$API_URL")
-          PATTERN="mihomo-linux-${{ matrix.mihomo_arch }}-alpha-smart-"
+          PATTERN="mihomo-linux-${{ matrix.mihomo_arch }}-alpha-"
           DOWNLOAD_URL=$(echo "$RELEASE" | python3 -c "
           import json, sys
           data = json.load(sys.stdin)
@@ -199,7 +199,7 @@ jobs:
           body: |
             ## ClashLite Pro v${{ steps.info.outputs.version }}
 
-            基于 vernesong/mihomo (Alpha-Smart) 内核的代理管理面板 Pro 版。
+            基于 MetaCubeX/mihomo (Alpha) 内核的代理管理面板 Pro 版。
 
             ### 🆕 Pro 版特性
 

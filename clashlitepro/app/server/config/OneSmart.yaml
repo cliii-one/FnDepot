@@ -3,7 +3,7 @@
 # ||      单订阅源融合版                   ||
 # ||      融合 OneSmart + OneSmartPro     ||
 # >>=====================================<<
-# 内核: vernesong/mihomo Alpha-Smart
+# 内核: MetaCubeX/mihomo Alpha
 # 特点: 单订阅源，融合极简版和专业版优点
 
 # ==================== 锚点配置 ====================
@@ -54,7 +54,6 @@ keep-alive-idle: 600
 experimental:
   quic-go-disable-gso: true
 
-external-controller: 127.0.0.1:9090
 external-controller-unix: MIHOMO_UNIX_SOCKET
 external-ui: ui
 secret: MB_SECRET

@@ -93,9 +93,8 @@ experimental:
   quic-go-disable-gso: true  
      
 # 管理面板配置
-external-ui: ui
-external-controller: 127.0.0.1:9090
 external-controller-unix: MIHOMO_UNIX_SOCKET
+external-ui: ui
 secret: MB_SECRET
 authentication:
   - mihomo:MB_SECRET
