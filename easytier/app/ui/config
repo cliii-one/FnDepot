@@ -1,7 +1,7 @@
 {
   ".url": {
     "easytier.Main": {
-      "title": "EasyTier 控制台",
+      "title": "EasyTier",
       "icon": "images/icon_{0}.png",
       "type": "iframe",
       "protocol": "http",
