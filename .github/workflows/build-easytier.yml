@@ -87,11 +87,12 @@ jobs:
           TMP_DIR=$(mktemp -d)
           unzip -q -o easytier.zip -d "$TMP_DIR"
 
-          cp "$TMP_DIR"/easytier-core app/server/data/easytier/ 2>/dev/null || true
-          cp "$TMP_DIR"/easytier-web-embed app/server/data/easytier/ 2>/dev/null || true
-          cp "$TMP_DIR"/easytier-cli app/server/data/easytier/ 2>/dev/null || true
+          SOURCE_DIR="$TMP_DIR/easytier-linux-${{ matrix.easytier_arch }}"
+          cp "$SOURCE_DIR"/easytier-core app/server/data/easytier/
+          cp "$SOURCE_DIR"/easytier-web-embed app/server/data/easytier/
+          cp "$SOURCE_DIR"/easytier-cli app/server/data/easytier/
 
-          chmod +x app/server/data/easytier/easytier-* 2>/dev/null || true
+          chmod +x app/server/data/easytier/easytier-*
           ls -lh app/server/data/easytier/
           rm -rf "$TMP_DIR" easytier.zip
 
