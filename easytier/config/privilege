@@ -1,5 +1,4 @@
 {
-  "defaults": {
-    "run-as": "root"
-  }
+    "username": "easytier",
+    "groupname": "easytier"
 }
