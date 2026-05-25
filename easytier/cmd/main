@@ -86,6 +86,8 @@ start_core() {
 
     log_msg "Starting easytier-core with args: ${args[*]}"
 
+    # 设置状态目录到有权限的位置
+    export ET_STATE_DIR="${TRIM_PKGVAR}"
     cd "${TRIM_PKGVAR}"
     "${EASYTIER_DIR}/easytier-core" "${args[@]}" >> "${LOG_FILE}" 2>&1 &
     local pid=$!
@@ -117,6 +119,8 @@ start_web() {
 
     log_msg "Starting easytier-web-embed ..."
 
+    # 设置状态目录到有权限的位置
+    export ET_STATE_DIR="${TRIM_PKGVAR}"
     cd "${TRIM_PKGVAR}"
     "${EASYTIER_DIR}/easytier-web-embed" \
         --api-server-port 11211 \
