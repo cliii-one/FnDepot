@@ -76,16 +76,17 @@ start_core() {
     LATENCY_FIRST=$(read_config latency_first)
 
     local args=()
-    args+=("-n" "${NETWORK_NAME}")
-    [ -n "${NETWORK_SECRET}" ] && args+=("-s" "${NETWORK_SECRET}")
-    args+=("-i" "${VIRTUAL_IP}")
-    args+=("-e" "${PUBLIC_SERVER}")
+    [ -n "${NETWORK_NAME}" ] && args+=("--network-name" "${NETWORK_NAME}")
+    [ -n "${NETWORK_SECRET}" ] && args+=("--network-secret" "${NETWORK_SECRET}")
+    [ -n "${VIRTUAL_IP}" ] && args+=("-i" "${VIRTUAL_IP}")
+    [ -n "${PUBLIC_SERVER}" ] && args+=("-e" "${PUBLIC_SERVER}")
     args+=("-w" "udp://127.0.0.1:22020/admin")
-    [ "${ENABLE_ENCRYPTION}" = "true" ] && args+=("--enable-encryption")
-    [ "${LATENCY_FIRST}" = "true" ] && args+=("--latency-first")
+    # 注意：--disable-encryption 是禁用，所以如果 ENABLE_ENCRYPTION="false" 才加这个参数
+    [ "${ENABLE_ENCRYPTION}" = "false" ] && args+=("-u" "true")
 
     log_msg "Starting easytier-core with args: ${args[*]}"
 
+    cd "${TRIM_PKGVAR}"
     "${EASYTIER_DIR}/easytier-core" "${args[@]}" >> "${LOG_FILE}" 2>&1 &
     local pid=$!
     printf "%s" "${pid}" > "${CORE_PID_FILE}"
@@ -116,6 +117,7 @@ start_web() {
 
     log_msg "Starting easytier-web-embed ..."
 
+    cd "${TRIM_PKGVAR}"
     "${EASYTIER_DIR}/easytier-web-embed" \
         --api-server-port 11211 \
         --api-host "http://127.0.0.1:11211" \

@@ -106,7 +106,7 @@ jobs:
 
       - name: 修复脚本权限
         run: |
-          for f in cmd/main cmd/install_callback cmd/config_callback cmd/uninstall_callback; do
+          for f in cmd/main cmd/install_callback cmd/config_callback cmd/uninstall_callback cmd/config_init cmd/install_init cmd/uninstall_init cmd/upgrade_init cmd/upgrade_callback; do
             [ -f "$f" ] && sed -i 's/\r$//' "$f" && chmod +x "$f"
           done
 
