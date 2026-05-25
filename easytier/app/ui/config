@@ -1,16 +1,13 @@
 {
   ".url": {
     "easytier.Main": {
-      "title": "EasyTier 控制台",
+      "title": "EasyTier",
       "icon": "images/icon_{0}.png",
-      "type": "iframe",
+      "type": "url",
       "protocol": "http",
       "port": "11211",
       "url": "/",
-      "allUsers": true,
-      "control": {
-        "accessPerm": "readonly"
-      }
+      "allUsers": true
     }
   }
 }
