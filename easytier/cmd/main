@@ -2,9 +2,6 @@
 set -euo pipefail
 
 EASYTIER_DIR="${TRIM_PKGHOME}/easytier"
-EASYTIER_BIN="${TRIM_APPDEST}/server/data/easytier/easytier-core"
-EASYTIER_WEB_BIN="${TRIM_APPDEST}/server/data/easytier/easytier-web-embed"
-CONFIG_FILE="${TRIM_PKGVAR}/easytier.conf"
 CORE_PID_FILE="${TRIM_PKGVAR}/easytier-core.pid"
 WEB_PID_FILE="${TRIM_PKGVAR}/easytier-web.pid"
 LOG_FILE="${TRIM_PKGVAR}/info.log"
@@ -13,28 +10,7 @@ log_msg() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "${LOG_FILE}"
 }
 
-ensure_config() {
-    if [ ! -f "${CONFIG_FILE}" ]; then
-        NETWORK_NAME="${wizard_network_name:-my-network}"
-        NETWORK_SECRET="${wizard_network_secret:-}"
-        VIRTUAL_IP="${wizard_virtual_ip:-10.144.144.1}"
-        PUBLIC_SERVER="${wizard_public_server:-tcp://easytier.public.com:11010}"
-        ENABLE_ENCRYPTION="${wizard_enable_encryption:-true}"
-        LATENCY_FIRST="${wizard_enable_latency_first:-false}"
-
-        cat > "${CONFIG_FILE}" << EOF
-[network]
-network_name = "${NETWORK_NAME}"
-network_secret = "${NETWORK_SECRET}"
-virtual_ip = "${VIRTUAL_IP}"
-public_server = "${PUBLIC_SERVER}"
-enable_encryption = "${ENABLE_ENCRYPTION}"
-latency_first = "${LATENCY_FIRST}"
-EOF
-        log_msg "配置文件已创建: ${CONFIG_FILE}"
-    fi
-}
-
+# 将打包的二进制复制到可写目录，并赋予执行权限
 copy_bundled() {
     local bundled_dir="${TRIM_APPDEST}/server/data/easytier"
     if [ -d "${bundled_dir}" ]; then
@@ -47,19 +23,14 @@ copy_bundled() {
     fi
 }
 
-read_config() {
-    if [ -f "${CONFIG_FILE}" ]; then
-        grep "^${1} " "${CONFIG_FILE}" 2>/dev/null | sed 's/.*= *"\?\([^"]*\)"\?/\1/' | head -1
-    fi
-}
-
+# 启动 easytier-core，仅开启配置服务端口，不传任何网络参数
+# 用户通过 Web 前端自行配置网络
 start_core() {
     if check_core_status; then
         return 0
     fi
 
     copy_bundled
-    ensure_config
 
     if [ ! -x "${EASYTIER_DIR}/easytier-core" ]; then
         log_msg "ERROR: easytier-core binary not found"
@@ -68,25 +39,12 @@ start_core() {
         exit 1
     fi
 
-    NETWORK_NAME=$(read_config network_name)
-    NETWORK_SECRET=$(read_config network_secret)
-    VIRTUAL_IP=$(read_config virtual_ip)
-    PUBLIC_SERVER=$(read_config public_server)
-    ENABLE_ENCRYPTION=$(read_config enable_encryption)
-    LATENCY_FIRST=$(read_config latency_first)
-
+    # 仅开启配置服务端口，等待 Web 前端下发配置
     local args=()
-    [ -n "${NETWORK_NAME}" ] && args+=("--network-name" "${NETWORK_NAME}")
-    [ -n "${NETWORK_SECRET}" ] && args+=("--network-secret" "${NETWORK_SECRET}")
-    [ -n "${VIRTUAL_IP}" ] && args+=("-i" "${VIRTUAL_IP}")
-    [ -n "${PUBLIC_SERVER}" ] && args+=("-e" "${PUBLIC_SERVER}")
     args+=("-w" "udp://127.0.0.1:22020/admin")
-    # 注意：--disable-encryption 是禁用，所以如果 ENABLE_ENCRYPTION="false" 才加这个参数
-    [ "${ENABLE_ENCRYPTION}" = "false" ] && args+=("-u" "true")
 
     log_msg "Starting easytier-core with args: ${args[*]}"
 
-    # 设置状态目录到有权限的位置
     export ET_STATE_DIR="${TRIM_PKGVAR}"
     cd "${TRIM_PKGVAR}"
     "${EASYTIER_DIR}/easytier-core" "${args[@]}" >> "${LOG_FILE}" 2>&1 &
@@ -107,6 +65,7 @@ start_core() {
     return 0
 }
 
+# 启动 easytier-web-embed Web 控制台
 start_web() {
     if check_web_status; then
         return 0
@@ -119,10 +78,11 @@ start_web() {
 
     log_msg "Starting easytier-web-embed ..."
 
-    # 设置状态目录到有权限的位置
     export ET_STATE_DIR="${TRIM_PKGVAR}"
+    export ET_WEB_DB="${TRIM_PKGVAR}/et.db"
     cd "${TRIM_PKGVAR}"
     "${EASYTIER_DIR}/easytier-web-embed" \
+        --db "${TRIM_PKGVAR}/et.db" \
         --api-server-port 11211 \
         --config-server-port 22020 \
         --config-server-protocol udp \

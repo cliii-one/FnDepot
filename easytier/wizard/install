@@ -4,58 +4,7 @@
         "items": [
             {
                 "type": "tips",
-                "helpText": "<strong>EasyTier</strong> 是一个去中心化的 VPN 组网工具，支持 P2P 打洞、Web 控制台管理。<br><br>安装后通过 Web 控制台管理节点，默认端口 11211。"
-            },
-            {
-                "type": "text",
-                "field": "wizard_network_name",
-                "label": "网络名称",
-                "initValue": "my-network",
-                "helpText": "EasyTier 虚拟网络名称，所有节点需相同才能互通",
-                "rules": [{"required": true, "message": "网络名称不能为空"}]
-            },
-            {
-                "type": "text",
-                "field": "wizard_network_secret",
-                "label": "网络密钥",
-                "initValue": "",
-                "helpText": "网络加密密钥，留空则不加密（建议设置）"
-            },
-            {
-                "type": "text",
-                "field": "wizard_virtual_ip",
-                "label": "虚拟 IP 地址",
-                "initValue": "10.144.144.1",
-                "helpText": "本节点的虚拟 IP 地址（如 10.144.144.1）"
-            }
-        ]
-    },
-    {
-        "stepTitle": "高级配置",
-        "items": [
-            {
-                "type": "tips",
-                "helpText": "以下为可选配置，通常保持默认即可。"
-            },
-            {
-                "type": "text",
-                "field": "wizard_public_server",
-                "label": "公共服务器",
-                "initValue": "tcp://easytier.public.com:11010",
-                "helpText": "用于 NAT 穿透的公共服务器地址"
-            },
-            {
-                "type": "switch",
-                "field": "wizard_enable_encryption",
-                "label": "启用加密",
-                "initValue": "true"
-            },
-            {
-                "type": "switch",
-                "field": "wizard_enable_latency_first",
-                "label": "延迟优先模式",
-                "initValue": "false",
-                "helpText": "开启后优先选择低延迟节点而非低成本路径"
+                "helpText": "<strong>EasyTier</strong> 是一个去中心化的 VPN 组网工具，支持 P2P 打洞、Web 控制台管理。<br><br>安装完成后，请打开 EasyTier 前端页面，根据实际需求自行配置网络参数。"
             }
         ]
     }

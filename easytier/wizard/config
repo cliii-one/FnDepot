@@ -4,35 +4,7 @@
         "items": [
             {
                 "type": "tips",
-                "helpText": "修改配置后保存，将自动重启 EasyTier 服务。留空表示不修改当前值。"
-            },
-            {
-                "type": "text",
-                "field": "wizard_network_name",
-                "label": "网络名称",
-                "initValue": "",
-                "helpText": "留空不修改"
-            },
-            {
-                "type": "text",
-                "field": "wizard_network_secret",
-                "label": "网络密钥",
-                "initValue": "",
-                "helpText": "留空不修改"
-            },
-            {
-                "type": "text",
-                "field": "wizard_virtual_ip",
-                "label": "虚拟 IP 地址",
-                "initValue": "",
-                "helpText": "留空不修改"
-            },
-            {
-                "type": "text",
-                "field": "wizard_public_server",
-                "label": "公共服务器",
-                "initValue": "",
-                "helpText": "留空不修改"
+                "helpText": "EasyTier 的所有网络参数均通过 Web 前端页面配置。<br><br>请打开 EasyTier 前端页面，在界面中根据实际需求添加和修改网络配置。"
             }
         ]
     }

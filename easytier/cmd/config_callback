@@ -1,27 +1,5 @@
 #!/bin/bash
 
-NETWORK_NAME="${wizard_network_name:-}"
-NETWORK_SECRET="${wizard_network_secret:-}"
-VIRTUAL_IP="${wizard_virtual_ip:-}"
-PUBLIC_SERVER="${wizard_public_server:-}"
-
-CONFIG_FILE="${TRIM_PKGVAR}/easytier.conf"
-
-[ ! -f "${CONFIG_FILE}" ] && exit 0
-
-if [ -n "${NETWORK_NAME}" ]; then
-    sed -i "s/^network_name.*/network_name = \"${NETWORK_NAME}\"/" "${CONFIG_FILE}"
-fi
-if [ -n "${NETWORK_SECRET}" ]; then
-    sed -i "s/^network_secret.*/network_secret = \"${NETWORK_SECRET}\"/" "${CONFIG_FILE}"
-fi
-if [ -n "${VIRTUAL_IP}" ]; then
-    sed -i "s/^virtual_ip.*/virtual_ip = \"${VIRTUAL_IP}\"/" "${CONFIG_FILE}"
-fi
-if [ -n "${PUBLIC_SERVER}" ]; then
-    sed -i "s/^public_server.*/public_server = \"${PUBLIC_SERVER}\"/" "${CONFIG_FILE}"
-fi
-
 "${TRIM_APPDEST}/cmd/main" stop 2>/dev/null
 "${TRIM_APPDEST}/cmd/main" start 2>/dev/null
 
