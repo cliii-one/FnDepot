@@ -52,54 +52,6 @@
 └─────────────────────────────────────────────────────────┘
 ```
 
-## 安装与使用
-
-### 从 GitHub Release 安装
-
-1. 前往 [Releases](https://github.com/cliii-one/FnDepot/releases) 下载对应架构的 FPK
-2. 在飞牛应用中心手动安装
-3. 安装完成后自动启动，点击桌面图标打开控制台
-
-### 登录信息
-
-| 项目 | 值 |
-|------|-----|
-| 访问地址 | 飞牛桌面图标或 `http://NAS-IP:5666/app/easytier` |
-| 初始账号 | `admin` |
-| 初始密码 | `admin` |
-
-> 首次登录后请及时修改密码。
-
-### 配置方式
-
-安装时不预设任何网络参数，启动后打开 Web 控制台，根据实际需求自行配置：
-- 网络名称与密钥
-- 虚拟 IP 地址
-- 公共服务器地址
-- 加密选项
-
-## 构建与发布
-
-### 触发构建
-
-在 GitHub Actions 页面手动触发 "构建 EasyTier" workflow。
-
-### 版本号规则
-
-| 触发方式 | 版本号 |
-|---------|--------|
-| 推送 `easytier-v*` 标签 | 标签中的版本号 |
-| 手动输入版本号 | 输入的版本号 |
-| 不填版本 | 读取 manifest 默认版本 |
-
-### 构建流程
-
-1. 从 EasyTier/EasyTier 获取最新 Release 版本
-2. 下载对应架构的 easytier-core + easytier-web-embed + easytier-cli
-3. 更新 manifest 版本号和平台
-4. 打包 FPK
-5. 创建 GitHub Release
-
 ## 关键文件说明
 
 ### cmd/main
