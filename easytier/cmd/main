@@ -18,9 +18,7 @@ ensure_config() {
         NETWORK_NAME="${wizard_network_name:-my-network}"
         NETWORK_SECRET="${wizard_network_secret:-}"
         VIRTUAL_IP="${wizard_virtual_ip:-10.144.144.1}"
-        PUBLIC_SERVER="${wizard_public_server:-tcp://easytier.public.com:11010}"
-        ENABLE_ENCRYPTION="${wizard_enable_encryption:-true}"
-        LATENCY_FIRST="${wizard_enable_latency_first:-false}"
+        PUBLIC_SERVER="${wizard_public_server:-tcp://public.easytier.cn:11010}"
 
         cat > "${CONFIG_FILE}" << EOF
 [network]
@@ -28,8 +26,6 @@ network_name = "${NETWORK_NAME}"
 network_secret = "${NETWORK_SECRET}"
 virtual_ip = "${VIRTUAL_IP}"
 public_server = "${PUBLIC_SERVER}"
-enable_encryption = "${ENABLE_ENCRYPTION}"
-latency_first = "${LATENCY_FIRST}"
 EOF
         log_msg "配置文件已创建: ${CONFIG_FILE}"
     fi

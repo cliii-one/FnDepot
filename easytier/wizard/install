@@ -41,21 +41,8 @@
                 "type": "text",
                 "field": "wizard_public_server",
                 "label": "公共服务器",
-                "initValue": "tcp://easytier.public.com:11010",
+                "initValue": "tcp://public.easytier.cn:11010",
                 "helpText": "用于 NAT 穿透的公共服务器地址"
-            },
-            {
-                "type": "switch",
-                "field": "wizard_enable_encryption",
-                "label": "启用加密",
-                "initValue": "true"
-            },
-            {
-                "type": "switch",
-                "field": "wizard_enable_latency_first",
-                "label": "延迟优先模式",
-                "initValue": "false",
-                "helpText": "开启后优先选择低延迟节点而非低成本路径"
             }
         ]
     }
