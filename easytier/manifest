@@ -9,6 +9,6 @@ maintainer_url        = https://github.com/EasyTier/EasyTier
 distributor           = cliii-one
 distributor_url       = https://github.com/cliii-one/FnDepot
 desktop_uidir         = ui
-desktop_applaunchname = easytier.Main
+desktop_applaunchname = easytier.Application
 os_min_version        = 1.1.31
 ctl_stop              = true

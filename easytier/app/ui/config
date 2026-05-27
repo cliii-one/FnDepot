@@ -1,12 +1,13 @@
 {
   ".url": {
-    "easytier.Main": {
+    "easytier.Application": {
       "title": "EasyTier",
       "icon": "images/icon_{0}.png",
       "type": "iframe",
       "protocol": "",
-      "port": "11211",
-      "url": "/",
+      "gatewaySocket": "easytier.sock",
+      "gatewayPrefix": "/app/easytier",
+      "url": "/app/easytier",
       "allUsers": true,
       "control": {
         "accessPerm": "readonly"
