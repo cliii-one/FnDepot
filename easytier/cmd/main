@@ -2,10 +2,8 @@
 set -euo pipefail
 
 EASYTIER_DIR="${TRIM_PKGHOME}/easytier"
-PROXY_BIN="${TRIM_APPDEST}/server/proxy/easytier-proxy"
 CORE_PID_FILE="${TRIM_PKGVAR}/easytier-core.pid"
 WEB_PID_FILE="${TRIM_PKGVAR}/easytier-web.pid"
-PROXY_PID_FILE="${TRIM_PKGVAR}/easytier-proxy.pid"
 LOG_FILE="${TRIM_PKGVAR}/info.log"
 
 log_msg() {
@@ -29,20 +27,6 @@ wait_for_pid() {
     local count=0
     while [ ${count} -lt ${timeout} ]; do
         kill -0 "${pid}" 2>/dev/null && return 0
-        sleep 1
-        count=$((count + 1))
-    done
-    return 1
-}
-
-# 等待 TCP 端口可连接
-wait_for_port() {
-    local port=$1 timeout=${2:-10}
-    local count=0
-    while [ ${count} -lt ${timeout} ]; do
-        if nc -z 127.0.0.1 "${port}" 2>/dev/null; then
-            return 0
-        fi
         sleep 1
         count=$((count + 1))
     done
@@ -122,30 +106,6 @@ start_web() {
     fi
 }
 
-# 启动 Go 反代：监听 Unix Socket，转发到 127.0.0.1:11211
-# 需要先等 easytier-web-embed 的 11211 端口就绪
-start_proxy() {
-    check_proxy_status && return 0
-
-    if [ ! -x "${PROXY_BIN}" ]; then
-        log_msg "WARNING: easytier-proxy not found, skipping gateway proxy"
-        return 0
-    fi
-
-    # 等待 easytier-web-embed 端口就绪
-    if ! wait_for_port 11211 15; then
-        log_msg "WARNING: easytier-web-embed port 11211 not ready, proxy may fail"
-    fi
-
-    cd "${TRIM_PKGVAR}"
-    "${PROXY_BIN}" >> "${LOG_FILE}" 2>&1 &
-    printf "%s" "$!" > "${PROXY_PID_FILE}"
-
-    if ! wait_for_pid "$!" 5; then
-        log_msg "WARNING: easytier-proxy may not have started properly"
-    fi
-}
-
 check_core_status() {
     if [ -f "${CORE_PID_FILE}" ]; then
         local pid
@@ -170,32 +130,18 @@ check_web_status() {
     return 1
 }
 
-check_proxy_status() {
-    if [ -f "${PROXY_PID_FILE}" ]; then
-        local pid
-        pid=$(head -n 1 "${PROXY_PID_FILE}" | tr -d '[:space:]')
-        if [ -n "${pid}" ] && kill -0 "${pid}" 2>/dev/null; then
-            return 0
-        fi
-        rm -f "${PROXY_PID_FILE}"
-    fi
-    return 1
-}
-
 case "${1:-}" in
 start)
     mkdir -p "${TRIM_PKGVAR}"
     start_core
     start_web
-    start_proxy
     ;;
 stop)
-    stop_by_pid_file "${PROXY_PID_FILE}" "easytier-proxy"
     stop_by_pid_file "${WEB_PID_FILE}" "easytier-web-embed"
     stop_by_pid_file "${CORE_PID_FILE}" "easytier-core"
     ;;
 status)
-    check_proxy_status && exit 0 || exit 3
+    check_core_status && exit 0 || exit 3
     ;;
 *)
     echo "Usage: $0 {start|stop|status}" >&2

@@ -96,18 +96,6 @@ jobs:
           ls -lh app/server/data/easytier/
           rm -rf "$TMP_DIR" easytier.zip
 
-      - name: 编译 Go 反代
-        run: |
-          cd app/server/proxy
-          if [ "${{ matrix.arch }}" = "arm64" ]; then
-            export GOARCH=arm64
-          else
-            export GOARCH=amd64
-          fi
-          CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o easytier-proxy .
-          chmod +x easytier-proxy
-          ls -lh easytier-proxy
-
       - name: 更新 manifest
         run: |
           VERSION="${{ steps.version.outputs.version }}"
@@ -203,7 +191,7 @@ jobs:
             ### 特性
 
             - ✅ 去中心化 VPN 组网，P2P 打洞
-            - ✅ Web 控制台管理节点（通过飞牛统一网关访问）
+            - ✅ Web 控制台管理节点（端口 11211）
             - ✅ 支持加密通信和延迟优先模式
             - ✅ 兼容 x86_64 和 ARM64 架构
 
