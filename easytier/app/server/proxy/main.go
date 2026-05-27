@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -29,7 +31,6 @@ func main() {
 	}
 	socketPath := appDest + "/" + socketFileName
 
-	// 通过 TCP 连接 easytier-web-embed 上游
 	upstreamTransport := &http.Transport{
 		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
 			return net.DialTimeout("tcp", upstreamHost, 5*time.Second)
@@ -46,7 +47,6 @@ func main() {
 	proxy.Director = func(req *http.Request) {
 		originalDirector(req)
 
-		// 剥离网关前缀 /app/easytier → /
 		if strings.HasPrefix(req.URL.Path, gatewayPrefix) {
 			req.URL.Path = strings.TrimPrefix(req.URL.Path, gatewayPrefix)
 			if req.URL.Path == "" {
@@ -57,7 +57,7 @@ func main() {
 		req.Host = upstreamHost
 	}
 
-	proxy.ModifyResponse = rewriteRedirectLocation
+	proxy.ModifyResponse = modifyResponse
 
 	proxy.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 		log.Printf("代理错误: %s %s -> %v", r.Method, r.URL.Path, err)
@@ -65,24 +65,20 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	// 拦截 /app/easytier/api_meta.js，动态注入 API 地址
 	mux.HandleFunc(gatewayPrefix+apiMetaJSPath, handleApiMetaJS)
 	mux.Handle("/", proxy)
 
-	// 清理旧 Socket 文件
 	if _, err := os.Stat(socketPath); err == nil {
 		if err := os.Remove(socketPath); err != nil {
 			log.Fatalf("无法清理旧的 Socket 文件: %v", err)
 		}
 	}
 
-	// 监听 Unix Socket
 	listener, err := net.Listen("unix", socketPath)
 	if err != nil {
 		log.Fatalf("Socket 监听失败: %v", err)
 	}
 
-	// 赋权 0666，飞牛网关需要访问
 	if err := os.Chmod(socketPath, 0666); err != nil {
 		listener.Close()
 		log.Fatalf("无法修改 Socket 文件权限: %v", err)
@@ -114,25 +110,65 @@ func main() {
 	fmt.Println("网关反向代理已优雅退出")
 }
 
-// handleApiMetaJS 动态生成 api_meta.js，
-// 让 EasyTier 前端自动识别 API 地址为当前页面地址，无需手动输入
 func handleApiMetaJS(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
-	// 前端回退逻辑: location.origin + location.pathname
-	// 在 iframe 中就是 http://NAS-IP:5666/app/easytier
 	fmt.Fprintf(w,
 		"window.apiMeta = {\"api_host\": window.location.origin + '%s'}",
 		gatewayPrefix,
 	)
 }
 
-// rewriteRedirectLocation 重写 302 重定向的 Location 头，
-// 将 easytier-web-embed 返回的绝对路径补回网关前缀
-func rewriteRedirectLocation(resp *http.Response) error {
+// modifyResponse 处理上游响应：
+// 1. 重写 302 重定向 Location 头
+// 2. 重写 HTML 中的绝对路径资源引用（/assets/ → /app/easytier/assets/）
+func modifyResponse(resp *http.Response) error {
+	rewriteRedirectLocation(resp)
+
+	contentType := resp.Header.Get("Content-Type")
+	if strings.Contains(contentType, "text/html") {
+		rewriteHTMLContent(resp)
+	}
+
+	return nil
+}
+
+func rewriteRedirectLocation(resp *http.Response) {
 	loc := resp.Header.Get("Location")
 	if loc != "" && strings.HasPrefix(loc, "/") && !strings.HasPrefix(loc, gatewayPrefix) {
 		resp.Header.Set("Location", gatewayPrefix+loc)
 	}
-	return nil
+}
+
+// rewriteHTMLContent 重写 HTML 响应体中的绝对路径
+// SPA 前端的资源引用如 src="/assets/xxx.js" 需要改为 src="/app/easytier/assets/xxx.js"
+// 否则浏览器直接请求 /assets/xxx.js 不会被 fnOS 网关路由到本代理
+func rewriteHTMLContent(resp *http.Response) {
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return
+	}
+	resp.Body.Close()
+
+	original := string(body)
+	replacements := []struct{ from, to string }{
+		{`src="/`, `src="` + gatewayPrefix + "/"},
+		{`href="/`, `href="` + gatewayPrefix + "/"},
+		{`src='/`, `src='` + gatewayPrefix + "/"},
+		{`href='/`, `href='` + gatewayPrefix + "/"},
+	}
+
+	modified := original
+	for _, r := range replacements {
+		modified = strings.ReplaceAll(modified, r.from, r.to)
+	}
+
+	// 注入 api_meta.js 的 script 标签到 <head> 后面
+	apiMetaScript := `<script src="` + gatewayPrefix + `/api_meta.js"></script>`
+	modified = strings.Replace(modified, "<head>", "<head>"+apiMetaScript, 1)
+
+	newBody := []byte(modified)
+	resp.Body = io.NopCloser(bytes.NewReader(newBody))
+	resp.ContentLength = int64(len(newBody))
+	resp.Header.Set("Content-Length", fmt.Sprintf("%d", len(newBody)))
 }
