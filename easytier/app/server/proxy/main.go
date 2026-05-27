@@ -55,6 +55,8 @@ func main() {
 		}
 
 		req.Host = upstreamHost
+		// 禁用上游 gzip 压缩，确保 HTML 以明文返回，这样 rewriteHTMLContent 的字符串替换才能生效
+		req.Header.Set("Accept-Encoding", "identity")
 	}
 
 	proxy.ModifyResponse = modifyResponse
@@ -129,6 +131,9 @@ func modifyResponse(resp *http.Response) error {
 	if strings.Contains(contentType, "text/html") {
 		rewriteHTMLContent(resp)
 	}
+
+	// 清除上游可能残留的 Content-Encoding 头，因为我们已经将响应体改为明文
+	resp.Header.Del("Content-Encoding")
 
 	return nil
 }
