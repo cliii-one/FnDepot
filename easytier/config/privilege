@@ -1,7 +1,5 @@
 {
     "defaults": {
-        "run-as": "package"
-    },
-    "username": "easytier",
-    "groupname": "easytier"
+        "run-as": "root"
+    }
 }
