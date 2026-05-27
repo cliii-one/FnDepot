@@ -26,7 +26,7 @@
 │   ├── config_callback                   # 配置变更后重启
 │   └── uninstall_callback                # 卸载清理
 ├── config/
-│   ├── privilege                         # 权限配置（run-as: root，TUN 需要）
+│   ├── privilege                         # 权限配置（run-as: package，免 root）
 │   └── resource                          # data-share 共享目录
 ├── wizard/
 │   ├── install                           # 安装向导（欢迎提示）
@@ -45,7 +45,7 @@
 │                    - 配置服务 (UDP 127.0.0.1:22020)     │
 │                                    ↓                    │
 │                    easytier-core                         │
-│                    - TUN 虚拟网卡（需 root）             │
+│                    - --no-tun 模式（免 root）             │
 │                    - P2P 打洞 / 中继                     │
 │                    - 加密通信                            │
 │                    - 状态持久化 ($TRIM_PKGVAR)           │
@@ -58,7 +58,7 @@
 
 管理 easytier-core + easytier-web-embed 双进程：
 - `copy_bundled()`：从安装目录复制二进制到可写目录（已存在则跳过）
-- `start_core()`：启动 easytier-core，仅开启配置服务端口 `-w udp://127.0.0.1:22020/admin`
+- `start_core()`：启动 easytier-core（`--no-tun` 免 root + `-w` 配置服务端口）
 - `start_web()`：启动 easytier-web-embed，监听 11211 端口
 - `stop_by_pid_file()`：通用停止函数，PID 文件优先，pgrep 兜底
 - `wait_for_pid()`：通用启动等待函数
@@ -67,13 +67,13 @@
 
 ```json
 {
-    "defaults": { "run-as": "root" },
+    "defaults": { "run-as": "package" },
     "username": "easytier",
     "groupname": "easytier"
 }
 ```
 
-使用 root 权限运行，因为 easytier-core 的 TUN 模式需要创建虚拟网卡。
+使用 package 隔离模式运行，配合 `--no-tun` 参数无需 root 权限。
 
 ## 维护指南
 

@@ -51,7 +51,6 @@ stop_by_pid_file() {
         rm -f "${pid_file}"
         return 0
     fi
-    # PID 文件不存在时用 pgrep 兜底
     local pids
     pids=$(pgrep -f "${pattern}" 2>/dev/null) || true
     [ -n "${pids}" ] && kill -TERM ${pids} 2>/dev/null || true
@@ -68,9 +67,15 @@ start_core() {
         exit 1
     fi
 
-    export ET_STATE_DIR="${TRIM_PKGVAR}"
+    # --no-tun: 不创建 TUN 设备，免 root 权限
+    # -w: 开启配置服务端口，等待 Web 前端下发配置
+    # --machine-id: 固定机器标识，确保 Web 控制台重连后能恢复配置
     cd "${TRIM_PKGVAR}"
-    "${EASYTIER_DIR}/easytier-core" -w "udp://127.0.0.1:22020/admin" >> "${LOG_FILE}" 2>&1 &
+    "${EASYTIER_DIR}/easytier-core" \
+        --no-tun \
+        -w "udp://127.0.0.1:22020/admin" \
+        --machine-id "${TRIM_SYS_MACHINE_ID}" \
+        >> "${LOG_FILE}" 2>&1 &
     printf "%s" "$!" > "${CORE_PID_FILE}"
 
     if ! wait_for_pid "$!" 10; then
@@ -86,7 +91,6 @@ start_web() {
         return 0
     fi
 
-    export ET_STATE_DIR="${TRIM_PKGVAR}"
     export ET_WEB_DB="${TRIM_PKGVAR}/et.db"
     cd "${TRIM_PKGVAR}"
     "${EASYTIER_DIR}/easytier-web-embed" \
