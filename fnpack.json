@@ -30,7 +30,7 @@
       "x86",
       "arm"
     ],
-    "version": "1.0.2",
+    "version": "1.0.3",
     "desc": "是一款轻量、安全的本地便签工具。专注高效记录，守护你的数据主权",
     "distributor": "cliii-one",
     "distributor_url": "https://github.com/cliii-one/FnDepot/tree/main/fnnas-notes",
@@ -42,10 +42,10 @@
     "changelog": "AI上线，arm暂时不可用，应用中心统一网关暂未上线",
     "arch_diff": {
       "x86": {
-        "download_url": "https://github.com/cliii-one/FnDepot/releases/download/fnnas-notes-v1.0.2/fnnas-notes-X86.fpk"
+        "download_url": "https://github.com/cliii-one/FnDepot/releases/download/fnnas-notes-v1.0.3/fnnas-notes-X86.fpk"
       },
       "arm": {
-        "download_url": "https://github.com/cliii-one/FnDepot/releases/download/fnnas-notes-v1.0.2/fnnas-notes-ARM.fpk"
+        "download_url": "https://github.com/cliii-one/FnDepot/releases/download/fnnas-notes-v1.0.3/fnnas-notes-ARM.fpk"
       }
     }
   },
