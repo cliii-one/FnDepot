@@ -39,7 +39,7 @@
     "isdocker": "false",
     "size": "42",
     "install_type": "存储空间",
-    "changelog": "AI上线，arm暂时不可用，应用中心统一网关暂未上线",
+    "changelog": "细节完善优化",
     "arch_diff": {
       "x86": {
         "download_url": "https://github.com/cliii-one/FnDepot/releases/download/fnnas-notes-v1.0.3/fnnas-notes-X86.fpk"
