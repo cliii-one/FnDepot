@@ -1,12 +1,4 @@
 #!/bin/bash
-set -e
 
-mkdir -p "${TRIM_PKGVAR}/data" "${TRIM_PKGVAR}/logs"
-
-if [ -n "${wizard_media_path}" ]; then
-    MEDIA_PATH="${wizard_media_path}"
-    mkdir -p "${MEDIA_PATH}" 2>/dev/null || true
-    echo "${MEDIA_PATH}" > "${TRIM_PKGVAR}/data/media_path.conf"
-fi
 
 exit 0
