@@ -1,13 +1,16 @@
 {
   ".url": {
-    "easytier.Main": {
+    "easytier.Application": {
       "title": "EasyTier",
       "icon": "images/icon_{0}.png",
       "type": "iframe",
-      "protocol": "http",
+      "protocol": "",
       "port": "11211",
       "url": "/",
-      "allUsers": true
+      "allUsers": true,
+      "control": {
+        "accessPerm": "readonly"
+      }
     }
   }
 }
