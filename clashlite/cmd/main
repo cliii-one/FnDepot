@@ -1,182 +1,172 @@
 #!/bin/bash
-set -eo pipefail
+# ClashLite fnOS 生命周期脚本 - 启动/停止/状态
 
-# ── 路径变量（fnOS 系统注入）──
-MIHOMO_DIR="${TRIM_PKGHOME:-/tmp}/mihomo"
-MIHOMO_BIN="${MIHOMO_DIR}/mihomo"
-MIHOMO_CONFIG="${MIHOMO_DIR}/config.yaml"
-MIHOMO_SOCKET="${TRIM_APPDEST:-/tmp}/mihomo.sock"
-CLASHLITE_SOCK="${TRIM_APPDEST:-/tmp}/clashlite.sock"
-PROXY_BIN="${TRIM_APPDEST:-/tmp}/server/clashlite"
-MIHOMO_PID="${TRIM_PKGVAR:-/tmp}/mihomo.pid"
-PROXY_PID="${TRIM_PKGVAR:-/tmp}/clashlite.pid"
-LOG_FILE="${TRIM_PKGVAR:-/tmp}/info.log"
+LOG_FILE="${TRIM_PKGVAR}/info.log"
 
-# ── 日志函数 ──
-log_msg() {
+log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "${LOG_FILE}" 2>/dev/null
 }
 
-# ── 启动时写入可见错误（飞牛前端弹窗）──
-write_error() {
-    echo "$1" > "${TRIM_TEMP_LOGFILE:-/dev/null}"
-    log_msg "ERROR: $1"
+err() {
+    echo "$1" > "${TRIM_TEMP_LOGFILE}" 2>/dev/null
+    log "ERROR: $1"
 }
 
-# ── 修复配置中的 Unix Socket 路径占位符 ──
-fix_socket_path() {
-    local cfg="$1"
-    if grep -q "MIHOMO_UNIX_SOCKET" "${cfg}" 2>/dev/null; then
-        sed -i "s|MIHOMO_UNIX_SOCKET|${MIHOMO_SOCKET}|g" "${cfg}"
-        log_msg "已修复配置中的 Unix Socket 路径 -> ${MIHOMO_SOCKET}"
+log "========== cmd/main $1 =========="
+log "TRIM_APPDEST=${TRIM_APPDEST:-<unset>}"
+log "TRIM_PKGVAR=${TRIM_PKGVAR:-<unset>}"
+log "TRIM_PKGHOME=${TRIM_PKGHOME:-<unset>}"
+log "TRIM_DATA_SHARE_PATHS=${TRIM_DATA_SHARE_PATHS:-<unset>}"
+
+# ── 路径 ──
+MIHOMO_DIR="${TRIM_PKGHOME}/mihomo"
+MIHOMO_BIN="${MIHOMO_DIR}/mihomo"
+MIHOMO_SOCKET="${TRIM_APPDEST}/mihomo.sock"
+CLASHLITE_SOCK="${TRIM_APPDEST}/clashlite.sock"
+PROXY_BIN="${TRIM_APPDEST}/server/clashlite"
+
+# data-share 优先
+if [ -n "${TRIM_DATA_SHARE_PATHS:-}" ]; then
+    SHARE_DIR="${TRIM_DATA_SHARE_PATHS%%:*}"
+    [ -f "${SHARE_DIR}/config.yaml" ] && MIHOMO_CONFIG="${SHARE_DIR}/config.yaml" || MIHOMO_CONFIG="${MIHOMO_DIR}/config.yaml"
+else
+    MIHOMO_CONFIG="${MIHOMO_DIR}/config.yaml"
+fi
+
+# ── 修复占位符 ──
+fix_socket() {
+    if grep -q "MIHOMO_UNIX_SOCKET" "$1" 2>/dev/null; then
+        sed -i "s|MIHOMO_UNIX_SOCKET|${MIHOMO_SOCKET}|g" "$1"
+        log "Fixed MIHOMO_UNIX_SOCKET -> ${MIHOMO_SOCKET}"
     fi
 }
 
-# ── data-share 配置优先 ──
-if [ -n "${TRIM_DATA_SHARE_PATHS:-}" ]; then
-    SHARE_DIR="${TRIM_DATA_SHARE_PATHS%%:*}"
-    [ -f "${SHARE_DIR}/config.yaml" ] && MIHOMO_CONFIG="${SHARE_DIR}/config.yaml"
-fi
-
+# ── 从模板创建配置 ──
 ensure_config() {
-    [ ! -f "${MIHOMO_CONFIG}" ] || return 0
-
+    [ -f "${MIHOMO_CONFIG}" ] && { fix_socket "${MIHOMO_CONFIG}"; return 0; }
     local tmpl="${TRIM_APPDEST}/server/config/OneSmart.yaml"
-    [ ! -f "${tmpl}" ] && return 0
-
+    [ ! -f "${tmpl}" ] && { log "WARN: template not found: ${tmpl}"; return 0; }
     mkdir -p "$(dirname "${MIHOMO_CONFIG}")"
     cp "${tmpl}" "${MIHOMO_CONFIG}"
-    sed -i "s/MB_SECRET/yyds666/g" "${MIHOMO_CONFIG}"
-    sed -i "s|AIRPORT_URL1|https://example.com/subscribe?token=YOUR_TOKEN_HERE|g" "${MIHOMO_CONFIG}"
-    fix_socket_path "${MIHOMO_CONFIG}"
-    log_msg "Config created from template"
+    sed -i "s/MB_SECRET/${wizard_secret:-yyds666}/g" "${MIHOMO_CONFIG}"
+    sed -i "s|AIRPORT_URL1|${wizard_provider_url_1:-https://example.com}|g" "${MIHOMO_CONFIG}"
+    fix_socket "${MIHOMO_CONFIG}"
+    log "Config created: ${MIHOMO_CONFIG}"
 }
 
+# ── 复制内核文件 ──
 copy_bundled() {
     local src="${TRIM_APPDEST}/server/data/mihomo"
-    [ ! -d "${src}" ] && return 0
-
+    [ ! -d "${src}" ] && { log "No bundled data at ${src}"; return 0; }
     mkdir -p "${MIHOMO_DIR}"
-    cp -f "${src}/mihomo" "${MIHOMO_BIN}" && chmod +x "${MIHOMO_BIN}"
-
+    [ -f "${src}/mihomo" ] && cp -f "${src}/mihomo" "${MIHOMO_BIN}" && chmod +x "${MIHOMO_BIN}"
     for f in Model.bin geoip.metadb geosite.dat ASN.mmdb; do
         [ -f "${src}/${f}" ] && [ ! -f "${MIHOMO_DIR}/${f}" ] && cp "${src}/${f}" "${MIHOMO_DIR}/${f}"
     done
+    log "Bundled files copied"
 }
 
 copy_ui() {
     local src="${TRIM_APPDEST}/server/public"
     local dst="${MIHOMO_DIR}/ui"
-    [ ! -d "${src}" ] || [ -d "${dst}" ] && return 0
+    [ ! -d "${src}" ] && return 0
+    [ -d "${dst}" ] && return 0
     cp -r "${src}" "${dst}"
+    log "UI copied"
+}
+
+# ── PID 管理 ──
+is_running() {
+    local pidfile="$1"
+    [ -f "${pidfile}" ] || return 1
+    local pid
+    pid=$(cat "${pidfile}" | tr -d '[:space:]')
+    [ -n "${pid}" ] && kill -0 "${pid}" 2>/dev/null && return 0
+    rm -f "${pidfile}"
+    return 1
 }
 
 start_mihomo() {
-    check_mihomo_status && return 0
+    is_running "${TRIM_PKGVAR}/mihomo.pid" && { log "mihomo already running"; return 0; }
 
     copy_bundled
     copy_ui
     ensure_config
 
     if [ ! -x "${MIHOMO_BIN}" ]; then
-        write_error "【启动异常】未找到 mihomo 核心程序文件。请尝试在飞牛应用中心卸载后重新安装此应用。"
+        err "【启动异常】未找到 mihomo 核心程序文件: ${MIHOMO_BIN}"
         return 1
     fi
 
-    # 确保配置中的 socket 路径正确（处理升级/迁移场景）
-    fix_socket_path "${MIHOMO_CONFIG}"
-
     rm -f "${MIHOMO_SOCKET}"
-    log_msg "Starting mihomo ..."
+    log "Starting mihomo..."
 
     local args=(-d "${MIHOMO_DIR}")
     [ "${MIHOMO_CONFIG}" != "${MIHOMO_DIR}/config.yaml" ] && args+=(-f "${MIHOMO_CONFIG}")
 
     "${MIHOMO_BIN}" "${args[@]}" >> "${LOG_FILE}" 2>&1 &
     local pid=$!
-    if [ -z "${pid}" ]; then
-        write_error "mihomo 启动失败：进程未创建"
-        return 1
-    fi
-    echo "${pid}" > "${MIHOMO_PID}"
-    log_msg "mihomo started with PID ${pid}"
+    echo "${pid}" > "${TRIM_PKGVAR}/mihomo.pid"
+    log "mihomo PID=${pid}"
 
+    local i
     for i in $(seq 1 15); do
-        [ -S "${MIHOMO_SOCKET}" ] && { log_msg "mihomo socket ready"; return 0; }
+        [ -S "${MIHOMO_SOCKET}" ] && { log "mihomo socket ready"; return 0; }
         sleep 1
     done
 
-    write_error "mihomo 启动超时：Unix Socket 未就绪，请检查日志 ${LOG_FILE}"
+    err "mihomo 启动超时：Unix Socket ${MIHOMO_SOCKET} 未就绪"
     return 1
 }
 
 start_proxy() {
-    check_proxy_status && return 0
+    is_running "${TRIM_PKGVAR}/clashlite.pid" && { log "clashlite already running"; return 0; }
 
     if [ ! -x "${PROXY_BIN}" ]; then
-        write_error "【启动异常】未找到 clashlite 网关程序。请尝试在飞牛应用中心卸载后重新安装此应用。"
+        err "【启动异常】未找到 clashlite 网关程序: ${PROXY_BIN}"
         return 1
     fi
 
-    log_msg "Starting clashlite ..."
+    log "Starting clashlite..."
     "${PROXY_BIN}" >> "${LOG_FILE}" 2>&1 &
     local pid=$!
-    if [ -z "${pid}" ]; then
-        write_error "clashlite 启动失败：进程未创建"
-        return 1
-    fi
-    echo "${pid}" > "${PROXY_PID}"
-    log_msg "clashlite started with PID ${pid}"
+    echo "${pid}" > "${TRIM_PKGVAR}/clashlite.pid"
+    log "clashlite PID=${pid}"
 
+    local i
     for i in $(seq 1 5); do
-        [ -S "${CLASHLITE_SOCK}" ] && { log_msg "clashlite socket ready"; return 0; }
+        [ -S "${CLASHLITE_SOCK}" ] && { log "clashlite socket ready"; return 0; }
         sleep 1
     done
 
-    write_error "clashlite 启动超时：Unix Socket 未就绪"
+    err "clashlite 启动超时：Unix Socket ${CLASHLITE_SOCK} 未就绪"
     return 1
 }
 
 stop_mihomo() {
-    log_msg "Stopping mihomo ..."
-
-    if [ -f "${MIHOMO_PID}" ]; then
+    log "Stopping mihomo..."
+    if [ -f "${TRIM_PKGVAR}/mihomo.pid" ]; then
         local pid
-        pid=$(cat "${MIHOMO_PID}" | tr -d '[:space:]')
-        [ -n "${pid}" ] && kill -0 "${pid}" 2>/dev/null && kill -TERM "${pid}" 2>/dev/null || true
-        rm -f "${MIHOMO_PID}"
+        pid=$(cat "${TRIM_PKGVAR}/mihomo.pid" | tr -d '[:space:]')
+        [ -n "${pid}" ] && kill -0 "${pid}" 2>/dev/null && kill -TERM "${pid}" 2>/dev/null
+        rm -f "${TRIM_PKGVAR}/mihomo.pid"
     fi
-
     sleep 2
     pkill -f "mihomo" 2>/dev/null || true
     rm -f "${MIHOMO_SOCKET}"
 }
 
 stop_proxy() {
-    log_msg "Stopping clashlite ..."
-
-    if [ -f "${PROXY_PID}" ]; then
+    log "Stopping clashlite..."
+    if [ -f "${TRIM_PKGVAR}/clashlite.pid" ]; then
         local pid
-        pid=$(cat "${PROXY_PID}" | tr -d '[:space:]')
-        [ -n "${pid}" ] && kill -0 "${pid}" 2>/dev/null && kill -TERM "${pid}" 2>/dev/null || true
-        rm -f "${PROXY_PID}"
+        pid=$(cat "${TRIM_PKGVAR}/clashlite.pid" | tr -d '[:space:]')
+        [ -n "${pid}" ] && kill -0 "${pid}" 2>/dev/null && kill -TERM "${pid}" 2>/dev/null
+        rm -f "${TRIM_PKGVAR}/clashlite.pid"
     fi
-
     sleep 1
     pkill -f "${PROXY_BIN}" 2>/dev/null || true
     rm -f "${CLASHLITE_SOCK}"
-}
-
-check_mihomo_status() {
-    [ -f "${MIHOMO_PID}" ] && kill -0 "$(cat "${MIHOMO_PID}" | tr -d '[:space:]')" 2>/dev/null && return 0
-    rm -f "${MIHOMO_PID}"
-    return 1
-}
-
-check_proxy_status() {
-    [ -f "${PROXY_PID}" ] && kill -0 "$(cat "${PROXY_PID}" | tr -d '[:space:]')" 2>/dev/null && return 0
-    rm -f "${PROXY_PID}"
-    return 1
 }
 
 case "${1:-}" in
@@ -190,7 +180,8 @@ stop)
     stop_mihomo
     ;;
 status)
-    check_mihomo_status && check_proxy_status && exit 0 || exit 3
+    is_running "${TRIM_PKGVAR}/mihomo.pid" && is_running "${TRIM_PKGVAR}/clashlite.pid" && exit 0
+    exit 3
     ;;
 *)
     echo "Usage: $0 {start|stop|status}" >&2
