@@ -1,5 +1,13 @@
 #!/bin/bash
 
+# ── 防止并发配置更新 ──
+LOCK_FILE="${TRIM_PKGVAR:-/tmp}/.config.lock"
+exec 200>"${LOCK_FILE}"
+flock -n 200 || {
+    echo "配置更新中，请稍后重试" > "${TRIM_TEMP_LOGFILE:-/dev/null}"
+    exit 0
+}
+
 SECRET="${wizard_secret:-}"
 PROVIDER_URL_1="${wizard_provider_url_1:-}"
 

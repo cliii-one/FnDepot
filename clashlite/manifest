@@ -12,6 +12,7 @@ os_min_version        = 1.1.3100
 desktop_uidir         = ui
 desktop_applaunchname = clashlite.Application
 ctl_stop              = true
+checkport             = false
 disable_authorization_path = false
 changelog             = """
 v3.0.0 mihomo API 改为 Unix Socket 监听，零 TCP 端口暴露，网关代理二进制更名为 clashlite

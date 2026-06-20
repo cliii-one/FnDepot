@@ -21,6 +21,15 @@ if [ -n "${TRIM_DATA_SHARE_PATHS:-}" ]; then
     [ -f "${SHARE_DIR}/config.yaml" ] && MIHOMO_CONFIG="${SHARE_DIR}/config.yaml"
 fi
 
+# ── 修复配置中的 Unix Socket 路径占位符 ──
+fix_socket_path() {
+    local cfg="$1"
+    if grep -q "MIHOMO_UNIX_SOCKET" "${cfg}" 2>/dev/null; then
+        sed -i "s|MIHOMO_UNIX_SOCKET|${MIHOMO_SOCKET}|g" "${cfg}"
+        log_msg "已修复配置中的 Unix Socket 路径 -> ${MIHOMO_SOCKET}"
+    fi
+}
+
 ensure_config() {
     [ ! -f "${MIHOMO_CONFIG}" ] || return 0
 
@@ -31,6 +40,7 @@ ensure_config() {
     cp "${tmpl}" "${MIHOMO_CONFIG}"
     sed -i "s/MB_SECRET/yyds666/g" "${MIHOMO_CONFIG}"
     sed -i "s|AIRPORT_URL1|https://example.com/subscribe?token=YOUR_TOKEN_HERE|g" "${MIHOMO_CONFIG}"
+    fix_socket_path "${MIHOMO_CONFIG}"
     log_msg "Config created from template"
 }
 
@@ -66,6 +76,9 @@ start_mihomo() {
         exit 1
     fi
 
+    # 确保配置中的 socket 路径正确（处理升级/迁移场景）
+    fix_socket_path "${MIHOMO_CONFIG}"
+
     rm -f "${MIHOMO_SOCKET}"
     log_msg "Starting mihomo ..."
 
@@ -73,16 +86,23 @@ start_mihomo() {
     [ "${MIHOMO_CONFIG}" != "${MIHOMO_DIR}/config.yaml" ] && args+=(-f "${MIHOMO_CONFIG}")
 
     "${MIHOMO_BIN}" "${args[@]}" >> "${LOG_FILE}" 2>&1 &
-    echo $! > "${MIHOMO_PID}"
-    log_msg "mihomo started with PID $(cat "${MIHOMO_PID}")"
+    local pid=$!
+    if [ -z "${pid}" ]; then
+        log_msg "ERROR: mihomo 进程未创建"
+        echo "mihomo 启动失败：进程未创建" > "${TRIM_TEMP_LOGFILE}"
+        return 1
+    fi
+    echo "${pid}" > "${MIHOMO_PID}"
+    log_msg "mihomo started with PID ${pid}"
 
     for i in $(seq 1 15); do
         [ -S "${MIHOMO_SOCKET}" ] && { log_msg "mihomo socket ready"; return 0; }
         sleep 1
     done
 
-    log_msg "WARNING: mihomo socket not ready in 15s"
-    return 0
+    log_msg "ERROR: mihomo socket not ready in 15s"
+    echo "mihomo 启动超时：Unix Socket 未就绪，请检查日志 ${LOG_FILE}" > "${TRIM_TEMP_LOGFILE}"
+    return 1
 }
 
 start_proxy() {
@@ -96,16 +116,23 @@ start_proxy() {
 
     log_msg "Starting clashlite ..."
     "${PROXY_BIN}" >> "${LOG_FILE}" 2>&1 &
-    echo $! > "${PROXY_PID}"
-    log_msg "clashlite started with PID $(cat "${PROXY_PID}")"
+    local pid=$!
+    if [ -z "${pid}" ]; then
+        log_msg "ERROR: clashlite 进程未创建"
+        echo "clashlite 启动失败：进程未创建" > "${TRIM_TEMP_LOGFILE}"
+        return 1
+    fi
+    echo "${pid}" > "${PROXY_PID}"
+    log_msg "clashlite started with PID ${pid}"
 
     for i in $(seq 1 5); do
         [ -S "${CLASHLITE_SOCK}" ] && { log_msg "clashlite socket ready"; return 0; }
         sleep 1
     done
 
-    log_msg "WARNING: clashlite socket not ready in 5s"
-    return 0
+    log_msg "ERROR: clashlite socket not ready in 5s"
+    echo "clashlite 启动超时：Unix Socket 未就绪" > "${TRIM_TEMP_LOGFILE}"
+    return 1
 }
 
 stop_mihomo() {

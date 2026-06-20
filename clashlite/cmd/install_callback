@@ -41,6 +41,11 @@ if [ -f "${TEMPLATE}" ]; then
     else
         sed -i "s|AIRPORT_URL1|https://example.com/subscribe?token=YOUR_TOKEN_HERE|g" "${CONFIG_FILE}"
     fi
+
+    # 替换 Unix Socket 占位符（安装时使用 TRIM_APPDEST 构造绝对路径）
+    if [ -n "${TRIM_APPDEST:-}" ]; then
+        sed -i "s|MIHOMO_UNIX_SOCKET|${TRIM_APPDEST}/mihomo.sock|g" "${CONFIG_FILE}"
+    fi
 fi
 
 exit 0
