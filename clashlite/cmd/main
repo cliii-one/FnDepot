@@ -1,25 +1,27 @@
 #!/bin/bash
-set -euo pipefail
+set -eo pipefail
 
-MIHOMO_DIR="${TRIM_PKGHOME}/mihomo"
+# ── 路径变量（fnOS 系统注入）──
+MIHOMO_DIR="${TRIM_PKGHOME:-/tmp}/mihomo"
 MIHOMO_BIN="${MIHOMO_DIR}/mihomo"
 MIHOMO_CONFIG="${MIHOMO_DIR}/config.yaml"
-MIHOMO_SOCKET="${TRIM_APPDEST}/mihomo.sock"
-CLASHLITE_SOCK="${TRIM_APPDEST}/clashlite.sock"
-PROXY_BIN="${TRIM_APPDEST}/server/clashlite"
-MIHOMO_PID="${TRIM_PKGVAR}/mihomo.pid"
-PROXY_PID="${TRIM_PKGVAR}/clashlite.pid"
-LOG_FILE="${TRIM_PKGVAR}/info.log"
+MIHOMO_SOCKET="${TRIM_APPDEST:-/tmp}/mihomo.sock"
+CLASHLITE_SOCK="${TRIM_APPDEST:-/tmp}/clashlite.sock"
+PROXY_BIN="${TRIM_APPDEST:-/tmp}/server/clashlite"
+MIHOMO_PID="${TRIM_PKGVAR:-/tmp}/mihomo.pid"
+PROXY_PID="${TRIM_PKGVAR:-/tmp}/clashlite.pid"
+LOG_FILE="${TRIM_PKGVAR:-/tmp}/info.log"
 
+# ── 日志函数 ──
 log_msg() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "${LOG_FILE}"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "${LOG_FILE}" 2>/dev/null
 }
 
-# data-share 配置优先
-if [ -n "${TRIM_DATA_SHARE_PATHS:-}" ]; then
-    SHARE_DIR="${TRIM_DATA_SHARE_PATHS%%:*}"
-    [ -f "${SHARE_DIR}/config.yaml" ] && MIHOMO_CONFIG="${SHARE_DIR}/config.yaml"
-fi
+# ── 启动时写入可见错误（飞牛前端弹窗）──
+write_error() {
+    echo "$1" > "${TRIM_TEMP_LOGFILE:-/dev/null}"
+    log_msg "ERROR: $1"
+}
 
 # ── 修复配置中的 Unix Socket 路径占位符 ──
 fix_socket_path() {
@@ -29,6 +31,12 @@ fix_socket_path() {
         log_msg "已修复配置中的 Unix Socket 路径 -> ${MIHOMO_SOCKET}"
     fi
 }
+
+# ── data-share 配置优先 ──
+if [ -n "${TRIM_DATA_SHARE_PATHS:-}" ]; then
+    SHARE_DIR="${TRIM_DATA_SHARE_PATHS%%:*}"
+    [ -f "${SHARE_DIR}/config.yaml" ] && MIHOMO_CONFIG="${SHARE_DIR}/config.yaml"
+fi
 
 ensure_config() {
     [ ! -f "${MIHOMO_CONFIG}" ] || return 0
@@ -71,9 +79,8 @@ start_mihomo() {
     ensure_config
 
     if [ ! -x "${MIHOMO_BIN}" ]; then
-        echo "【启动异常】未找到 mihomo 核心程序文件。" > "${TRIM_TEMP_LOGFILE}"
-        echo "请尝试在飞牛应用中心卸载后重新安装此应用。" >> "${TRIM_TEMP_LOGFILE}"
-        exit 1
+        write_error "【启动异常】未找到 mihomo 核心程序文件。请尝试在飞牛应用中心卸载后重新安装此应用。"
+        return 1
     fi
 
     # 确保配置中的 socket 路径正确（处理升级/迁移场景）
@@ -88,8 +95,7 @@ start_mihomo() {
     "${MIHOMO_BIN}" "${args[@]}" >> "${LOG_FILE}" 2>&1 &
     local pid=$!
     if [ -z "${pid}" ]; then
-        log_msg "ERROR: mihomo 进程未创建"
-        echo "mihomo 启动失败：进程未创建" > "${TRIM_TEMP_LOGFILE}"
+        write_error "mihomo 启动失败：进程未创建"
         return 1
     fi
     echo "${pid}" > "${MIHOMO_PID}"
@@ -100,8 +106,7 @@ start_mihomo() {
         sleep 1
     done
 
-    log_msg "ERROR: mihomo socket not ready in 15s"
-    echo "mihomo 启动超时：Unix Socket 未就绪，请检查日志 ${LOG_FILE}" > "${TRIM_TEMP_LOGFILE}"
+    write_error "mihomo 启动超时：Unix Socket 未就绪，请检查日志 ${LOG_FILE}"
     return 1
 }
 
@@ -109,17 +114,15 @@ start_proxy() {
     check_proxy_status && return 0
 
     if [ ! -x "${PROXY_BIN}" ]; then
-        echo "【启动异常】未找到 clashlite 网关程序。" > "${TRIM_TEMP_LOGFILE}"
-        echo "请尝试在飞牛应用中心卸载后重新安装此应用。" >> "${TRIM_TEMP_LOGFILE}"
-        exit 1
+        write_error "【启动异常】未找到 clashlite 网关程序。请尝试在飞牛应用中心卸载后重新安装此应用。"
+        return 1
     fi
 
     log_msg "Starting clashlite ..."
     "${PROXY_BIN}" >> "${LOG_FILE}" 2>&1 &
     local pid=$!
     if [ -z "${pid}" ]; then
-        log_msg "ERROR: clashlite 进程未创建"
-        echo "clashlite 启动失败：进程未创建" > "${TRIM_TEMP_LOGFILE}"
+        write_error "clashlite 启动失败：进程未创建"
         return 1
     fi
     echo "${pid}" > "${PROXY_PID}"
@@ -130,8 +133,7 @@ start_proxy() {
         sleep 1
     done
 
-    log_msg "ERROR: clashlite socket not ready in 5s"
-    echo "clashlite 启动超时：Unix Socket 未就绪" > "${TRIM_TEMP_LOGFILE}"
+    write_error "clashlite 启动超时：Unix Socket 未就绪"
     return 1
 }
 
@@ -179,7 +181,7 @@ check_proxy_status() {
 
 case "${1:-}" in
 start)
-    mkdir -p "${TRIM_PKGVAR}"
+    mkdir -p "${TRIM_PKGVAR}" 2>/dev/null || true
     start_mihomo
     start_proxy
     ;;
