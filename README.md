@@ -4,7 +4,7 @@
 
 | 应用 | 最新版本 | 编译时间 |
 |:-----|:-------:|:-------:|
-| [ClashLite](clashlite/) — 基于 mihomo 内核的代理管理应用 | [![clashlite](https://img.shields.io/github/v/release/cliii-one/FnDepot?filter=clashlite-v*&label=&color=blue)](https://github.com/cliii-one/FnDepot/releases) | 2026-06-21 07:44 |
+| [ClashLite](clashlite/) — 基于 mihomo 内核的代理管理应用 | [![clashlite](https://img.shields.io/github/v/release/cliii-one/FnDepot?filter=clashlite-v*&label=&color=blue)](https://github.com/cliii-one/FnDepot/releases) | 2026-06-21 07:52 |
 | [SubStore](substore/) — 基于 Sub-Store 的订阅管理应用 | [![substore](https://img.shields.io/github/v/release/cliii-one/FnDepot?filter=substore-v*&label=&color=blue)](https://github.com/cliii-one/FnDepot/releases) | 2026-05-24 15:07 |
 | [fnnas-notes](fnnas-notes/) — 贴贴密笺 - 轻量安全的本地便签应用 | [![fnnas-notes](https://img.shields.io/github/v/release/cliii-one/FnDepot?filter=fnnas-notes-v*&label=&color=blue)](https://github.com/cliii-one/FnDepot/releases) | 2026-05-24 11:00 |
 | [MediaHub](mediahub/) — Emby + 115 云盘一站式媒体管理面板 | [![mediahub](https://img.shields.io/github/v/release/cliii-one/FnDepot?filter=mediahub-v*&label=&color=blue)](https://github.com/cliii-one/FnDepot/releases) | 2026-06-03 13:16 |
