@@ -1,8 +1,9 @@
 #!/bin/bash
-set -euo pipefail
+# install_callback - 安装后回调
+# 不使用 set -e，避免任何变量未定义导致静默失败
 
-mkdir -p "${TRIM_PKGHOME}/mihomo"
-mkdir -p "${TRIM_PKGVAR}"
+mkdir -p "${TRIM_PKGHOME}/mihomo" 2>/dev/null || true
+mkdir -p "${TRIM_PKGVAR}" 2>/dev/null || true
 
 SECRET="${wizard_secret:-yyds666}"
 PROVIDER_URL_1="${wizard_provider_url_1:-}"
@@ -12,7 +13,7 @@ if [ -n "${TRIM_DATA_SHARE_PATHS:-}" ]; then
     SHARE_DIR=$(echo "${TRIM_DATA_SHARE_PATHS}" | cut -d: -f1)
     [ -n "${SHARE_DIR}" ] && CONFIG_DIR="${SHARE_DIR}"
 fi
-mkdir -p "${CONFIG_DIR}"
+mkdir -p "${CONFIG_DIR}" 2>/dev/null || true
 
 echo "${CONFIG_DIR}" > "${TRIM_PKGVAR}/.config_dir"
 CONFIG_FILE="${CONFIG_DIR}/config.yaml"
@@ -42,7 +43,7 @@ if [ -f "${TEMPLATE}" ]; then
         sed -i "s|AIRPORT_URL1|https://example.com/subscribe?token=YOUR_TOKEN_HERE|g" "${CONFIG_FILE}"
     fi
 
-    # 替换 Unix Socket 占位符（安装时使用 TRIM_APPDEST 构造绝对路径）
+    # 替换 Unix Socket 占位符
     if [ -n "${TRIM_APPDEST:-}" ]; then
         sed -i "s|MIHOMO_UNIX_SOCKET|${TRIM_APPDEST}/mihomo.sock|g" "${CONFIG_FILE}"
     fi

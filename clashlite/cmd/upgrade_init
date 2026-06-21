@@ -1,5 +1,3 @@
 #!/bin/bash
-set -euo pipefail
-# 系统在调用 upgrade_init 前已执行 main stop
-# 配置文件在 data-share 目录，升级时不会被删除，无需备份
+# upgrade_init - 升级前回调
 exit 0

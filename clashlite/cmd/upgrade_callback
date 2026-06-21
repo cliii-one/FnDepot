@@ -1,9 +1,8 @@
 #!/bin/bash
-set -euo pipefail
-
+# upgrade_callback - 升级后回调
 # 记录当前配置路径（供下次安装时恢复）
 if [ -f "${TRIM_PKGVAR}/.config_dir" ]; then
-    cp "${TRIM_PKGVAR}/.config_dir" "${TRIM_PKGVAR}/.config_dir_prev"
+    cp "${TRIM_PKGVAR}/.config_dir" "${TRIM_PKGVAR}/.config_dir_prev" 2>/dev/null || true
 fi
 
 # 确保 data-share 目录下的配置文件不被覆盖

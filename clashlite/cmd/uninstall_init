@@ -1,4 +1,3 @@
 #!/bin/bash
-set -euo pipefail
-# 系统在调用 uninstall_init 前已执行 main stop
+# uninstall_init - 卸载前回调
 exit 0
