@@ -4,11 +4,11 @@
 mkdir -p "${TRIM_PKGVAR}" 2>/dev/null || true
 
 LOG_FILE="${TRIM_PKGVAR}/info.log"
-MAX_LOG_SIZE=102400  # 100KB 轮转
+MAX_LOG_SIZE=102400  # 100KB
 
 log() {
-    # 日志超过 100KB 时轮转
-    [ -f "${LOG_FILE}" ] && [ "$(stat -f%z "${LOG_FILE}" 2>/dev/null || stat -c%s "${LOG_FILE}" 2>/dev/null || echo 0)" -gt "${MAX_LOG_SIZE}" ] 2>/dev/null && mv "${LOG_FILE}" "${LOG_FILE}.old" 2>/dev/null || true
+    # 超过 100KB 截断保留末尾
+    [ -f "${LOG_FILE}" ] && [ "$(stat -c%s "${LOG_FILE}" 2>/dev/null || echo 0)" -gt "${MAX_LOG_SIZE}" ] 2>/dev/null && tail -c 51200 "${LOG_FILE}" > "${LOG_FILE}.tmp" 2>/dev/null && mv "${LOG_FILE}.tmp" "${LOG_FILE}" 2>/dev/null || true
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "${LOG_FILE}" 2>/dev/null || true
 }
 
