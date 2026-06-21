@@ -1,14 +1,20 @@
 #!/bin/bash
-# ClashLite fnOS 生命周期脚本 - 启动/停止/状态
+# ClashLite fnOS 生命周期脚本
+# 不使用 set -e，避免静默退出
+
+# ── 先创建目录，确保日志可写 ──
+mkdir -p "${TRIM_PKGVAR}" 2>/dev/null || mkdir -p /tmp 2>/dev/null || true
 
 LOG_FILE="${TRIM_PKGVAR}/info.log"
+BACKUP_LOG="/tmp/clashlite.log"
 
 log() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> "${LOG_FILE}" 2>/dev/null
+    local msg="$(date '+%Y-%m-%d %H:%M:%S') - $1"
+    echo "$msg" >> "${LOG_FILE}" 2>/dev/null || echo "$msg" >> "${BACKUP_LOG}" 2>/dev/null || true
 }
 
 err() {
-    echo "$1" > "${TRIM_TEMP_LOGFILE}" 2>/dev/null
+    echo "$1" > "${TRIM_TEMP_LOGFILE}" 2>/dev/null || true
     log "ERROR: $1"
 }
 
@@ -17,6 +23,7 @@ log "TRIM_APPDEST=${TRIM_APPDEST:-<unset>}"
 log "TRIM_PKGVAR=${TRIM_PKGVAR:-<unset>}"
 log "TRIM_PKGHOME=${TRIM_PKGHOME:-<unset>}"
 log "TRIM_DATA_SHARE_PATHS=${TRIM_DATA_SHARE_PATHS:-<unset>}"
+log "TRIM_TEMP_LOGFILE=${TRIM_TEMP_LOGFILE:-<unset>}"
 
 # ── 路径 ──
 MIHOMO_DIR="${TRIM_PKGHOME}/mihomo"
@@ -24,29 +31,34 @@ MIHOMO_BIN="${MIHOMO_DIR}/mihomo"
 MIHOMO_SOCKET="${TRIM_APPDEST}/mihomo.sock"
 CLASHLITE_SOCK="${TRIM_APPDEST}/clashlite.sock"
 PROXY_BIN="${TRIM_APPDEST}/server/clashlite"
+MIHOMO_CONFIG="${MIHOMO_DIR}/config.yaml"
 
 # data-share 优先
 if [ -n "${TRIM_DATA_SHARE_PATHS:-}" ]; then
     SHARE_DIR="${TRIM_DATA_SHARE_PATHS%%:*}"
-    [ -f "${SHARE_DIR}/config.yaml" ] && MIHOMO_CONFIG="${SHARE_DIR}/config.yaml" || MIHOMO_CONFIG="${MIHOMO_DIR}/config.yaml"
-else
-    MIHOMO_CONFIG="${MIHOMO_DIR}/config.yaml"
+    [ -f "${SHARE_DIR}/config.yaml" ] && MIHOMO_CONFIG="${SHARE_DIR}/config.yaml"
 fi
+
+log "MIHOMO_BIN=${MIHOMO_BIN}"
+log "MIHOMO_CONFIG=${MIHOMO_CONFIG}"
+log "MIHOMO_SOCKET=${MIHOMO_SOCKET}"
+log "CLASHLITE_SOCK=${CLASHLITE_SOCK}"
 
 # ── 修复占位符 ──
 fix_socket() {
-    if grep -q "MIHOMO_UNIX_SOCKET" "$1" 2>/dev/null; then
-        sed -i "s|MIHOMO_UNIX_SOCKET|${MIHOMO_SOCKET}|g" "$1"
+    local cfg="$1"
+    if grep -q "MIHOMO_UNIX_SOCKET" "${cfg}" 2>/dev/null; then
+        sed -i "s|MIHOMO_UNIX_SOCKET|${MIHOMO_SOCKET}|g" "${cfg}"
         log "Fixed MIHOMO_UNIX_SOCKET -> ${MIHOMO_SOCKET}"
     fi
 }
 
 # ── 从模板创建配置 ──
 ensure_config() {
-    [ -f "${MIHOMO_CONFIG}" ] && { fix_socket "${MIHOMO_CONFIG}"; return 0; }
+    [ -f "${MIHOMO_CONFIG}" ] && { fix_socket "${MIHOMO_CONFIG}"; log "Config exists, fixed socket path"; return 0; }
     local tmpl="${TRIM_APPDEST}/server/config/OneSmart.yaml"
     [ ! -f "${tmpl}" ] && { log "WARN: template not found: ${tmpl}"; return 0; }
-    mkdir -p "$(dirname "${MIHOMO_CONFIG}")"
+    mkdir -p "$(dirname "${MIHOMO_CONFIG}")" 2>/dev/null || true
     cp "${tmpl}" "${MIHOMO_CONFIG}"
     sed -i "s/MB_SECRET/${wizard_secret:-yyds666}/g" "${MIHOMO_CONFIG}"
     sed -i "s|AIRPORT_URL1|${wizard_provider_url_1:-https://example.com}|g" "${MIHOMO_CONFIG}"
@@ -57,9 +69,15 @@ ensure_config() {
 # ── 复制内核文件 ──
 copy_bundled() {
     local src="${TRIM_APPDEST}/server/data/mihomo"
-    [ ! -d "${src}" ] && { log "No bundled data at ${src}"; return 0; }
-    mkdir -p "${MIHOMO_DIR}"
-    [ -f "${src}/mihomo" ] && cp -f "${src}/mihomo" "${MIHOMO_BIN}" && chmod +x "${MIHOMO_BIN}"
+    if [ ! -d "${src}" ]; then
+        log "No bundled data at ${src}"
+        return 0
+    fi
+    mkdir -p "${MIHOMO_DIR}" 2>/dev/null || true
+    if [ -f "${src}/mihomo" ]; then
+        cp -f "${src}/mihomo" "${MIHOMO_BIN}" && chmod +x "${MIHOMO_BIN}"
+        log "mihomo binary copied"
+    fi
     for f in Model.bin geoip.metadb geosite.dat ASN.mmdb; do
         [ -f "${src}/${f}" ] && [ ! -f "${MIHOMO_DIR}/${f}" ] && cp "${src}/${f}" "${MIHOMO_DIR}/${f}"
     done
@@ -71,7 +89,7 @@ copy_ui() {
     local dst="${MIHOMO_DIR}/ui"
     [ ! -d "${src}" ] && return 0
     [ -d "${dst}" ] && return 0
-    cp -r "${src}" "${dst}"
+    cp -r "${src}" "${dst}" 2>/dev/null || true
     log "UI copied"
 }
 
@@ -98,7 +116,7 @@ start_mihomo() {
         return 1
     fi
 
-    rm -f "${MIHOMO_SOCKET}"
+    rm -f "${MIHOMO_SOCKET}" 2>/dev/null || true
     log "Starting mihomo..."
 
     local args=(-d "${MIHOMO_DIR}")
@@ -153,7 +171,7 @@ stop_mihomo() {
     fi
     sleep 2
     pkill -f "mihomo" 2>/dev/null || true
-    rm -f "${MIHOMO_SOCKET}"
+    rm -f "${MIHOMO_SOCKET}" 2>/dev/null || true
 }
 
 stop_proxy() {
@@ -166,7 +184,7 @@ stop_proxy() {
     fi
     sleep 1
     pkill -f "${PROXY_BIN}" 2>/dev/null || true
-    rm -f "${CLASHLITE_SOCK}"
+    rm -f "${CLASHLITE_SOCK}" 2>/dev/null || true
 }
 
 case "${1:-}" in
