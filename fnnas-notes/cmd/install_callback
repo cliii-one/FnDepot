@@ -1,13 +1,15 @@
 #!/bin/bash
-### This script is called after the user installs the application.
+# install_callback - 安装后回调
 
 APP_DIR="${TRIM_APPDEST}"
 
-chmod +x "${APP_DIR}/server/server.py" 2>/dev/null
-# 兼容部分环境会将 cmd 复制到安装目录的情况；路径不存在时忽略。
-chmod +x "${APP_DIR}/cmd/"* 2>/dev/null
+# server.py 从 ${TRIM_APPDEST}/ui/ 读取静态文件，但文件在 app/ui/
+# 创建符号链接使两者一致
+[ -d "${APP_DIR}/app/ui" ] && [ ! -e "${APP_DIR}/ui" ] && ln -s app/ui "${APP_DIR}/ui"
 
-mkdir -p "${TRIM_PKGVAR}/data"
+# Nuitka 编译的 server 在 app/server/server
+[ -f "${APP_DIR}/app/server/server" ] && chmod +x "${APP_DIR}/app/server/server"
 
-echo "贴贴密笺安装完成"
+mkdir -p "${TRIM_PKGVAR}/data" 2>/dev/null || true
+
 exit 0
