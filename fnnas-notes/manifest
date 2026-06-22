@@ -27,4 +27,4 @@ desktop_uidir=ui
 desktop_applaunchname=fnnas.notes.Application
 ctl_stop=true
 disable_authorization_path=false
-changelog= 1. 添加自动备份
+changelog=1. 添加自动备份 2. 优化数据加载逻辑
