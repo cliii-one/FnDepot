@@ -137,17 +137,17 @@ jobs:
       # ========== 组装应用文件 ==========
       - name: 组装应用文件
         run: |
-          # Flutter Web 产物 → app/ui/
-          mkdir -p app/ui
-          cp -r /tmp/fnnas-notes-src/src/frontend/build/web/* app/ui/
-          cp $GITHUB_WORKSPACE/fnnas-notes/app/ui/config app/ui/config 2>/dev/null || true
-          mkdir -p app/ui/images
-          cp $GITHUB_WORKSPACE/fnnas-notes/app/ui/images/* app/ui/images/ 2>/dev/null || true
+          # Flutter Web 产物 → ui/（server.py 从 ${TRIM_APPDEST}/ui/ 读取）
+          mkdir -p ui
+          cp -r /tmp/fnnas-notes-src/src/frontend/build/web/* ui/
+          cp $GITHUB_WORKSPACE/fnnas-notes/app/ui/config ui/config 2>/dev/null || true
+          mkdir -p ui/images
+          cp $GITHUB_WORKSPACE/fnnas-notes/app/ui/images/* ui/images/ 2>/dev/null || true
 
-          # Nuitka 编译产物 → app/server/
-          mkdir -p app/server
-          cp /tmp/nuitka-out/server app/server/server
-          chmod +x app/server/server
+          # Nuitka 编译产物 → server/（cmd/main 从 ${TRIM_APPDEST}/server/ 读取）
+          mkdir -p server
+          cp /tmp/nuitka-out/server server/server
+          chmod +x server/server
           echo "✅ 应用文件组装完成"
 
       # ========== 更新 manifest ==========
