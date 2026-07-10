@@ -2,7 +2,8 @@ name: 构建 FlyMail
 
 on:
   push:
-    tags: ['flymail-v*']
+    tags:
+      - 'flymail-v*'
   workflow_dispatch:
     inputs:
       version:
@@ -14,13 +15,17 @@ on:
         required: false
         default: 'true'
         type: choice
-        options: ['true', 'false']
+        options:
+          - 'true'
+          - 'false'
       update_fnpack:
         description: '更新 fnpack.json 版本信息'
         required: false
         default: 'false'
         type: choice
-        options: ['true', 'false']
+        options:
+          - 'true'
+          - 'false'
 
 jobs:
   build:
@@ -221,36 +226,39 @@ jobs:
             exit 0
           fi
           
-          # 使用 Python 更新 JSON
-          python3 << 'PYEOF'
-import json
-import sys
-from datetime import datetime
-
-with open('fnpack.json', 'r', encoding='utf-8') as f:
-    data = json.load(f)
-
-app_id = 'flymail'
-version = '${{ steps.version.outputs.version }}'
-
-# 查找应用
-app = next((a for a in data.get('apps', []) if a.get('id') == app_id), None)
-if not app:
-    print(f'⚠️  未找到应用 {app_id}')
-    sys.exit(0)
-
-# 更新版本
-app['version'] = version
-app['updated_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
-# 写回文件
-with open('fnpack.json', 'w', encoding='utf-8') as f:
-    json.dump(data, f, ensure_ascii=False, indent=2)
-    f.write('\n')
-
-print(f'✅ fnpack.json 已更新: {app_id} → {version}')
-PYEOF
-
+          # 创建 Python 脚本文件
+          cat > /tmp/update_fnpack.py << 'PYEOF'
+          import json
+          import sys
+          from datetime import datetime
+          
+          with open('fnpack.json', 'r', encoding='utf-8') as f:
+              data = json.load(f)
+          
+          app_id = 'flymail'
+          version = '${{ steps.version.outputs.version }}'
+          
+          # 查找应用
+          app = next((a for a in data.get('apps', []) if a.get('id') == app_id), None)
+          if not app:
+              print(f'⚠️  未找到应用 {app_id}')
+              sys.exit(0)
+          
+          # 更新版本
+          app['version'] = version
+          app['updated_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+          
+          # 写回文件
+          with open('fnpack.json', 'w', encoding='utf-8') as f:
+              json.dump(data, f, ensure_ascii=False, indent=2)
+              f.write('\n')
+          
+          print(f'✅ fnpack.json 已更新: {app_id} → {version}')
+          PYEOF
+          
+          # 执行脚本
+          python3 /tmp/update_fnpack.py
+          
           # 提交更改
           git config user.name "GitHub Actions"
           git config user.email "actions@github.com"
