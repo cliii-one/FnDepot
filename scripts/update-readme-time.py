@@ -25,7 +25,7 @@ def update_readme_time(app_name, build_time):
     pattern = (
         r'(\|\s*\[' + re.escape(display) + r'\]\([^)]*\)\s*—\s*[^|]+'
         r'\|\s*\[!\[' + re.escape(app_name) + r'\][^|]+\|\s*)'
-        r'\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}'
+        r'(?:\d{4}-\d{2}-\d{2}\s+\d{2}:\d{2}|-)'
     )
 
     replacement = r'\g<1>' + time_only
