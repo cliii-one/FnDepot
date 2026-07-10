@@ -1,311 +1,163 @@
 name: 构建 FlyMail
 
 on:
-  push:
-    tags:
-      - 'flymail-v*'
   workflow_dispatch:
     inputs:
       version:
-        description: '版本号（留空则读取 manifest 默认版本）'
+        description: '版本号（留空则自动读取）'
         required: false
         default: ''
-      create_release:
-        description: '创建 GitHub Release'
-        required: false
-        default: 'true'
-        type: choice
-        options:
-          - 'true'
-          - 'false'
       update_fnpack:
         description: '更新 fnpack.json 版本信息'
         required: false
         default: 'false'
         type: choice
-        options:
-          - 'true'
-          - 'false'
+        options: ['true', 'false']
 
 jobs:
-  build:
+  trigger-and-download:
     runs-on: ubuntu-latest
-    name: 构建 ${{ matrix.arch }}
     strategy:
       matrix:
-        include:
-          - arch: x86_64
-            fnpack_platform: x86
-          - arch: arm64
-            fnpack_platform: arm
-    defaults:
-      run:
-        working-directory: flymail
-
+        arch: [x86_64, arm64]
     steps:
-      # ========== 检出 FnDepot 仓库 ==========
-      - name: 检出代码
+      - name: 检出 FnDepot 仓库
         uses: actions/checkout@v4
 
-      # ========== 确定版本号 ==========
-      - name: 确定版本号
-        id: version
-        run: |
-          MANIFEST_VER=$(grep '^version' manifest | awk -F'=' '{print $2}' | tr -d ' ')
-          if [ -n "${{ github.event.inputs.version }}" ]; then
-            VERSION="${{ github.event.inputs.version }}"
-          elif [[ "${{ github.ref }}" == refs/tags/flymail-v* ]]; then
-            VERSION="${{ github.ref_name }}"
-            VERSION="${VERSION#flymail-v}"
-          else
-            VERSION="${MANIFEST_VER}"
-          fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "版本号: $VERSION"
-
-      # ========== 克隆私有源码仓库 ==========
-      - name: 克隆源码仓库
+      - name: 触发源码仓库构建
+        if: matrix.arch == 'x86_64'  # 只触发一次
         env:
-          PRIVATE_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
+          GH_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
         run: |
-          git clone --depth=1 -b main https://x-access-token:${PRIVATE_TOKEN}@github.com/DinDing1/FlyMail.git /tmp/flymail-src
-          echo "✅ 源码克隆完成"
-
-      # ========== 构建前端 ==========
-      - name: 配置 Node.js 环境
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-
-      - name: 构建前端
-        run: |
-          cd /tmp/flymail-src/frontend
-          rm -rf node_modules package-lock.json
-          npm install
-          npm run build
-          echo "✅ 前端构建完成，输出目录: /tmp/flymail-src/dist/ui"
-          ls -la /tmp/flymail-src/dist/ui/
-
-      # ========== 编译 Python 后端为二进制 (Nuitka) ==========
-      # x86_64/arm64: 均通过 Docker 容器编译，使用 bullseye 确保 GLIBC 兼容性
-      - name: 配置 QEMU (ARM 构建)
-        if: matrix.arch == 'arm64'
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
-
-      - name: 编译 Python 后端 (Nuitka)
-        run: |
-          mkdir -p /tmp/nuitka-out
-          if [ "${{ matrix.arch }}" = "arm64" ]; then
-            echo "ARM 构建：通过 Docker QEMU 编译..."
-            docker run --rm --platform linux/arm64 \
-              -v /tmp/flymail-src/backend:/build \
-              -v /tmp/nuitka-out:/output \
-              python:3.11-slim-bullseye \
-              bash -c "
-                apt-get update -qq && apt-get install -y -qq patchelf gcc > /dev/null &&
-                pip install --quiet -r /build/requirements.txt &&
-                pip install nuitka ordered-set --quiet &&
-                cd /build &&
-                python -m nuitka --standalone --onefile \
-                  --include-package=services \
-                  --include-package=routes \
-                  --include-package=models \
-                  --include-package=db \
-                  --include-package=providers \
-                  --include-package=utils \
-                  --output-filename=server \
-                  --output-dir=/output \
-                  main.py &&
-                echo '编译完成'
-              "
-          else
-            echo "x86_64 构建：通过 Docker 容器编译（使用 bullseye 确保 GLIBC 兼容性）..."
-            docker run --rm \
-              -v /tmp/flymail-src/backend:/build \
-              -v /tmp/nuitka-out:/output \
-              python:3.11-slim-bullseye \
-              bash -c "
-                apt-get update -qq && apt-get install -y -qq patchelf gcc > /dev/null &&
-                pip install --quiet -r /build/requirements.txt &&
-                pip install nuitka ordered-set --quiet &&
-                cd /build &&
-                python -m nuitka --standalone --onefile \
-                  --include-package=services \
-                  --include-package=routes \
-                  --include-package=models \
-                  --include-package=db \
-                  --include-package=providers \
-                  --include-package=utils \
-                  --output-filename=server \
-                  --output-dir=/output \
-                  main.py &&
-                echo '编译完成'
-              "
-          fi
-          echo "✅ Python 后端编译完成"
-          file /tmp/nuitka-out/server 2>/dev/null || true
-          ls -lh /tmp/nuitka-out/server
-
-      # ========== 组装应用文件 ==========
-      - name: 组装应用文件
-        run: |
-          # 前端产物 → app/ui/
-          mkdir -p app/ui
-          cp -r /tmp/flymail-src/dist/ui/* app/ui/
-          echo "✅ 前端文件已复制到 app/ui/"
-          ls -la app/ui/ | head -20
-
-          # Nuitka 编译产物 → app/server/flymail-server
-          mkdir -p app/server
-          cp /tmp/nuitka-out/server app/server/flymail-server
-          chmod +x app/server/flymail-server
-          echo "✅ 应用文件组装完成"
-
-      # ========== 更新 manifest ==========
-      - name: 更新 manifest
-        run: |
-          sed -i "s/^version=.*/version=${{ steps.version.outputs.version }}/" manifest
-          echo "✅ Manifest 版本已更新为 ${{ steps.version.outputs.version }}"
-
-      # ========== 打包 .fpk ==========
-      - name: 下载 fnpack
-        run: |
-          mkdir -p /tmp/fnpack
-          cd /tmp/fnpack
+          echo "触发 FlyMail 源码仓库构建..."
+          gh workflow run build-flymail-arm-native.yml \
+            --repo DinDing1/FlyMail \
+            --ref main \
+            --field version="${{ github.event.inputs.version }}" \
+            --field create_release="false"
           
-          if [ "${{ matrix.arch }}" = "arm64" ]; then
-            wget -q https://static2.fnnas.com/fnpack/fnpack-1.2.1-linux-arm64 -O fnpack
-          else
-            wget -q https://static2.fnnas.com/fnpack/fnpack-1.2.1-linux-amd64 -O fnpack
-          fi
-          
-          chmod +x fnpack
-          echo "✅ fnpack 下载完成"
+          echo "等待构建启动..."
+          sleep 10
 
-      - name: 打包 .fpk
+      - name: 等待源码仓库构建完成
+        env:
+          GH_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
         run: |
-          /tmp/fnpack/fnpack build --arch ${{ matrix.fnpack_platform }}
+          echo "等待 FlyMail 源码仓库构建完成..."
           
-          # 移动 .fpk 到工作区根目录
-          FPK_FILE=$(ls *.fpk 2>/dev/null | head -1)
-          if [ -n "$FPK_FILE" ]; then
-            mv "$FPK_FILE" /tmp/
-            echo "fpk_name=$FPK_FILE" >> $GITHUB_OUTPUT
-            echo "✅ 打包完成: $FPK_FILE"
-          else
-            echo "❌ 未找到生成的 .fpk 文件"
+          for i in {1..60}; do
+            echo "检查构建状态 ($i/60)..."
+            
+            # 获取最新的 workflow run
+            RUN_ID=$(gh run list \
+              --repo DinDing1/FlyMail \
+              --workflow build-flymail-arm-native.yml \
+              --limit 1 \
+              --json databaseId \
+              --jq '.[0].databaseId')
+            
+            if [ -z "$RUN_ID" ]; then
+              echo "未找到构建任务，继续等待..."
+              sleep 30
+              continue
+            fi
+            
+            STATUS=$(gh run view "$RUN_ID" \
+              --repo DinDing1/FlyMail \
+              --json status \
+              --jq '.status')
+            
+            echo "构建状态: $STATUS"
+            
+            if [ "$STATUS" = "completed" ]; then
+              CONCLUSION=$(gh run view "$RUN_ID" \
+                --repo DinDing1/FlyMail \
+                --json conclusion \
+                --jq '.conclusion')
+              
+              if [ "$CONCLUSION" = "success" ]; then
+                echo "✅ 构建成功！Run ID: $RUN_ID"
+                echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
+                break
+              else
+                echo "❌ 构建失败: $CONCLUSION"
+                exit 1
+              fi
+            fi
+            
+            sleep 30
+          done
+          
+          if [ -z "$RUN_ID" ] || [ "$STATUS" != "completed" ]; then
+            echo "❌ 构建超时（30分钟）"
             exit 1
           fi
-        id: pack
 
-      # ========== 上传构建产物 ==========
+      - name: 下载源码仓库构建产物
+        env:
+          GH_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
+        run: |
+          echo "下载 FlyMail 构建产物..."
+          
+          gh run download "$RUN_ID" \
+            --repo DinDing1/FlyMail \
+            --name flymail-${{ matrix.arch }} \
+            --dir /tmp/flymail-fpk/
+          
+          ls -lh /tmp/flymail-fpk/
+          
+          # 重命名为标准格式
+          FPK_FILE=$(ls /tmp/flymail-fpk/*.fpk | head -1)
+          if [ -n "$FPK_FILE" ]; then
+            cp "$FPK_FILE" flymail-${{ matrix.arch }}.fpk
+            echo "✅ 已下载: flymail-${{ matrix.arch }}.fpk"
+          else
+            echo "❌ 未找到 .fpk 文件"
+            exit 1
+          fi
+
       - name: 上传构建产物
         uses: actions/upload-artifact@v4
         with:
-          name: flymail-${{ matrix.arch }}-${{ steps.version.outputs.version }}
-          path: /tmp/*.fpk
+          name: flymail-${{ matrix.arch }}-fpk
+          path: flymail-*.fpk
           retention-days: 7
 
-      # ========== 更新 fnpack.json ==========
-      - name: 更新 fnpack.json
-        if: github.event.inputs.update_fnpack == 'true' && matrix.arch == 'x86_64'
-        run: |
-          cd $GITHUB_WORKSPACE
-          
-          # 检查 fnpack.json 是否存在
-          if [ ! -f fnpack.json ]; then
-            echo "⚠️  fnpack.json 不存在，跳过更新"
-            exit 0
-          fi
-          
-          # 创建 Python 脚本文件
-          cat > /tmp/update_fnpack.py << 'PYEOF'
-          import json
-          import sys
-          from datetime import datetime
-          
-          with open('fnpack.json', 'r', encoding='utf-8') as f:
-              data = json.load(f)
-          
-          app_id = 'flymail'
-          version = '${{ steps.version.outputs.version }}'
-          
-          # 查找应用
-          app = next((a for a in data.get('apps', []) if a.get('id') == app_id), None)
-          if not app:
-              print(f'⚠️  未找到应用 {app_id}')
-              sys.exit(0)
-          
-          # 更新版本
-          app['version'] = version
-          app['updated_at'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-          
-          # 写回文件
-          with open('fnpack.json', 'w', encoding='utf-8') as f:
-              json.dump(data, f, ensure_ascii=False, indent=2)
-              f.write('\n')
-          
-          print(f'✅ fnpack.json 已更新: {app_id} → {version}')
-          PYEOF
-          
-          # 执行脚本
-          python3 /tmp/update_fnpack.py
-          
-          # 提交更改
-          git config user.name "GitHub Actions"
-          git config user.email "actions@github.com"
-          git add fnpack.json
-          git commit -m "chore(fnpack): update FlyMail to v${{ steps.version.outputs.version }}" || echo "无需提交"
-          git push || echo "无需推送"
-
-  # ========== 创建 GitHub Release ==========
-  release:
-    if: github.event.inputs.create_release == 'true' || startsWith(github.ref, 'refs/tags/flymail-v')
-    needs: build
+  update-fnpack-json:
+    needs: trigger-and-download
     runs-on: ubuntu-latest
+    if: github.event.inputs.update_fnpack == 'true'
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: 下载所有构建产物
+      - name: 下载所有产物
         uses: actions/download-artifact@v4
         with:
-          path: artifacts
+          path: ./artifacts/
 
-      - name: 确定版本号
-        id: version
+      - name: 更新 fnpack.json
         run: |
-          if [ -n "${{ github.event.inputs.version }}" ]; then
-            VERSION="${{ github.event.inputs.version }}"
-          elif [[ "${{ github.ref }}" == refs/tags/flymail-v* ]]; then
-            VERSION="${{ github.ref_name }}"
-            VERSION="${VERSION#flymail-v}"
-          else
-            VERSION=$(grep '^version' flymail/manifest | awk -F'=' '{print $2}' | tr -d ' ')
+          # 读取版本号
+          VERSION=$(unzip -p artifacts/flymail-x86_64-fpk/flymail-x86_64.fpk manifest | grep '^version' | awk -F'=' '{print $2}' | tr -d ' ')
+          
+          if [ -z "$VERSION" ]; then
+            echo "❌ 无法读取版本号"
+            exit 1
           fi
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "tag=flymail-v$VERSION" >> $GITHUB_OUTPUT
-
-      - name: 创建 Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ steps.version.outputs.tag }}
-          name: FlyMail v${{ steps.version.outputs.version }}
-          body: |
-            ## FlyMail v${{ steps.version.outputs.version }}
-            
-            飞牛 OS 邮箱管理应用
-            
-            ### 安装说明
-            1. 下载对应架构的 `.fpk` 文件
-            2. 上传到飞牛 OS 应用商店
-            3. 点击安装
-            
-            ### 包含文件
-            - `flymail-${{ steps.version.outputs.version }}-x86.fpk` (x86_64 架构)
-            - `flymail-${{ steps.version.outputs.version }}-arm.fpk` (ARM64 架构)
-          files: artifacts/**/*.fpk
-          draft: false
-          prerelease: false
+          
+          echo "更新 fnpack.json 版本: $VERSION"
+          
+          # 更新 fnpack.json（假设格式为标准 JSON）
+          jq --arg ver "$VERSION" \
+            '.version = $ver | .updated = (now | strftime("%Y-%m-%d"))' \
+            flymail/fnpack.json > /tmp/fnpack.json.new
+          
+          mv /tmp/fnpack.json.new flymail/fnpack.json
+          
+          # 提交更新
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add flymail/fnpack.json
+          git commit -m "chore(flymail): 更新版本到 $VERSION" || echo "无需更新"
+          git push
