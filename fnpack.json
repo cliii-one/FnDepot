@@ -162,7 +162,7 @@
     "bug_report_url": "https://github.com/cliii-one/FnDepot/issues",
     "labels": "工具,效率,邮件",
     "isdocker": "false",
-    "size": "70",
+    "size": "40",
     "install_type": "存储空间",
     "changelog": "1. 腾讯邮箱添加企业邮箱支持 2. 邮箱拖动自定义排序 3. 邮件正文链接点击事件委托处理 4. 谷歌邮箱添加 HTTP 代理配置 5. 支持自定义邮箱配置 6. 手机端UI优化 7. 谷歌和微软邮箱不再需要自备开发者账号，并添加谷歌代理配置",
     "arch_diff": {
