@@ -7,12 +7,6 @@ on:
         description: '版本号（留空则读取 manifest）'
         required: false
         default: ''
-      update_fnpack:
-        description: '更新 fnpack.json 版本信息'
-        required: false
-        default: 'false'
-        type: choice
-        options: ['true', 'false']
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -42,7 +36,6 @@ jobs:
       - name: 构建前端
         run: |
           cd /tmp/flymail-src/frontend
-          rm -rf node_modules package-lock.json
           npm install
           npm run build
           echo "✅ 前端构建完成"
@@ -274,8 +267,10 @@ jobs:
         include:
           - arch: x86_64
             fnpack_platform: x86
+            fpk_name: X86
           - arch: arm64
             fnpack_platform: arm
+            fpk_name: ARM
     steps:
       - name: 检出公开仓库
         uses: actions/checkout@v4
@@ -288,7 +283,7 @@ jobs:
             VERSION="${{ github.event.inputs.version }}"
           fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "版本号: $VERSION"
+          echo "✅ 版本号: $VERSION"
 
       - name: 下载前端产物
         uses: actions/download-artifact@v4
@@ -318,8 +313,6 @@ jobs:
           chmod +x flymail/app/server/flymail-server
 
           echo "✅ 应用文件组装完成"
-          ls -la flymail/app/server/
-          ls -la flymail/app/ui/
 
       - name: 更新 manifest
         run: |
@@ -347,9 +340,9 @@ jobs:
           cd flymail
           /tmp/fnpack build --directory .
           
-          # 重命名为标准格式
-          FPKN=$(ls *.fpk) && mv "$FPKN" flymail-${{ matrix.arch == 'x86_64' && 'X86' || 'ARM' }}.fpk
-          echo "✅ 构建完成: $(ls -lh *.fpk)"
+          # 重命名为 FnDepot 标准格式: flymail-X86.fpk / flymail-ARM.fpk
+          FPKN=$(ls *.fpk) && mv "$FPKN" flymail-${{ matrix.fpk_name }}.fpk
+          echo "✅ 打包完成: $(ls -lh *.fpk)"
 
       - name: 上传 FPK
         uses: actions/upload-artifact@v4
@@ -358,41 +351,75 @@ jobs:
           path: flymail/flymail-*.fpk
           retention-days: 7
 
-  # ========== Job 5: 更新 fnpack.json（可选）==========
-  update-fnpack-json:
+  # ========== Job 5: 更新 fnpack.json 并创建 Release ==========
+  release:
     needs: package
     runs-on: ubuntu-latest
-    if: github.event.inputs.update_fnpack == 'true'
+    permissions:
+      contents: write
     steps:
       - name: 检出代码
         uses: actions/checkout@v4
 
-      - name: 下载 x86 产物（用于读取版本）
+      - name: 下载所有 FPK
         uses: actions/download-artifact@v4
         with:
-          name: flymail-x86_64-fpk
           path: ./artifacts/
+
+      - name: 确定版本号
+        id: version
+        run: |
+          VERSION=$(unzip -p artifacts/flymail-x86_64-fpk/flymail-X86.fpk manifest | grep '^version' | awk -F'=' '{print $2}' | tr -d ' ')
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "✅ 版本号: $VERSION"
 
       - name: 更新 fnpack.json
         run: |
-          VERSION=$(unzip -p artifacts/flymail-X86.fpk manifest | grep '^version' | awk -F'=' '{print $2}' | tr -d ' ')
+          VERSION="${{ steps.version.outputs.version }}"
           
-          if [ -z "$VERSION" ]; then
-            echo "❌ 无法读取版本号"
-            exit 1
-          fi
+          # 更新 flymail 条目
+          jq --arg ver "$VERSION" \
+            --arg x86_url "https://github.com/cliii-one/FnDepot/releases/download/flymail-v${VERSION}/flymail-X86.fpk" \
+            --arg arm_url "https://github.com/cliii-one/FnDepot/releases/download/flymail-v${VERSION}/flymail-ARM.fpk" \
+            '.flymail.version = $ver |
+             .flymail.arch_diff.x86.download_url = $x86_url |
+             .flymail.arch_diff.arm.download_url = $arm_url' \
+            fnpack.json > /tmp/fnpack.json.new
           
-          echo "更新 fnpack.json 版本: $VERSION"
-          
-          if [ -f flymail/fnpack.json ]; then
-            jq --arg ver "$VERSION" \
-              '.version = $ver | .updated = (now | strftime("%Y-%m-%d"))' \
-              flymail/fnpack.json > /tmp/fnpack.json.new
-            mv /tmp/fnpack.json.new flymail/fnpack.json
-          fi
-          
+          mv /tmp/fnpack.json.new fnpack.json
+          echo "✅ fnpack.json 已更新"
+
+      - name: 提交 fnpack.json 更新
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add flymail/fnpack.json
-          git commit -m "chore(flymail): 更新版本到 $VERSION" || echo "无需更新"
+          git add fnpack.json
+          git commit -m "chore(flymail): 更新版本到 v${VERSION}" || echo "无需更新"
           git push
+
+      - name: 创建 Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          TAG="flymail-v${VERSION}"
+          
+          # 删除同名旧 Release（如果存在）
+          gh release delete "$TAG" --yes --cleanup-tag 2>/dev/null || true
+          
+          # 创建新 Release
+          gh release create "$TAG" \
+            --title "FlyMail v${VERSION}" \
+            --notes "飞邮 v${VERSION} 构建完成
+
+架构支持: x86_64, arm64
+构建方式: Nuitka 编译 + 原生 ARM runner
+
+下载链接:
+- x86_64: flymail-X86.fpk
+- arm64: flymail-ARM.fpk" \
+            artifacts/flymail-x86_64-fpk/flymail-X86.fpk \
+            artifacts/flymail-arm64-fpk/flymail-ARM.fpk
+          
+          echo "✅ Release 创建完成: $TAG"
