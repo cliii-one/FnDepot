@@ -6,7 +6,7 @@ DISPLAY_NAMES = {
     "clashlite": "ClashLite",
     "easytier": "EasyTier",
     "substore": "SubStore",
-    "flymail": "FlyMail",
+    "flymail": "飞邮",
     "fnnas-notes": "fnnas-notes",
     "mediahub": "MediaHub",
     "oneserver": "OneServer",
