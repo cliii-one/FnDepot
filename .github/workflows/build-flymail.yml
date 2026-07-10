@@ -115,8 +115,6 @@ jobs:
                   --include-package=db \
                   --include-package=providers \
                   --include-package=utils \
-                  --include-module=cryptography \
-                  --include-module=sqlite3 \
                   --output-filename=server \
                   --output-dir=/output \
                   main.py &&
@@ -140,8 +138,6 @@ jobs:
                   --include-package=db \
                   --include-package=providers \
                   --include-package=utils \
-                  --include-module=cryptography \
-                  --include-module=sqlite3 \
                   --output-filename=server \
                   --output-dir=/output \
                   main.py &&
