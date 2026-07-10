@@ -1,0 +1,17 @@
+[
+  {
+    "stepTitle": "欢迎安装",
+    "items": [
+      {
+        "type": "tips",
+        "helpText": "飞邮是一款运行在飞牛OS上的自托管邮件客户端，支持 Gmail、QQ邮箱、网易邮箱等主流邮箱。您的邮件数据将安全存储在本地 NAS，由您完全掌控。请妥善保管邮箱授权码和 OAuth 凭据，使用本应用即表示您对自己的数据安全负责。"
+      },
+      {
+        "type": "switch",
+        "field": "wizard_agree_terms",
+        "label": "已了解并同意",
+        "rules": [{ "required": true, "message": "同意后继续安装" }]
+      }
+    ]
+  }
+]

@@ -1,0 +1,14 @@
+appname               = flymail
+version               = 1.0.5
+display_name          = 飞邮
+desc                  = 飞邮（FlyMail） 是一款专为多邮箱用户打造的自托管邮件客户端，帮助您统一管理来自 Gmail、Outlook、QQ邮箱、网易邮箱、iCloud 等主流邮箱平台的邮件数据。通过聚合收件箱，您可以在一个界面查看所有邮箱的重要邮件，无需频繁切换账号。飞邮支持多账号管理、邮件收发、富文本编辑、附件上传下载、定时发送、邮件草稿、个性签名以及实时同步等丰富功能，满足日常办公与个人使用需求。未来还将持续支持更多邮箱平台与实用功能，为用户带来更加高效、便捷的邮件管理体验。
+platform              = all
+source                = thirdparty
+os_min_version        = 1.1.3100
+maintainer            = cliii_one
+maintainer_url        = https://github.com/cliii-one
+distributor           = cliii_one
+distributor_url       = https://github.com/cliii-one    
+desktop_uidir         = ui
+desktop_applaunchname = flymail.APPLICATION
+changelog             = 1. 腾讯邮箱添加企业邮箱支持 2. 邮箱拖动自定义排序 3. 邮件正文链接点击事件委托处理 4. 谷歌邮箱添加 HTTP 代理配置 5. 支持自定义邮箱配置 6. 手机端UI优化 7. 谷歌和微软邮箱不再需要自备开发者账号，并添加谷歌代理配置

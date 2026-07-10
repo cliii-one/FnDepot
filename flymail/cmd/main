@@ -1,0 +1,123 @@
+#!/bin/bash
+
+LOG_FILE="${TRIM_PKGVAR}/info.log"
+PID_FILE="${TRIM_PKGVAR}/app.pid"
+SOCKET_PATH="${TRIM_APPDEST}/flymail.sock"
+
+log_msg() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >> ${LOG_FILE}
+}
+
+# 等待 Unix Socket 文件就绪并可连接
+# fnOS 网关在 cmd/main 返回后立即尝试连接 socket，
+# 如果 socket 尚未就绪，网关会返回 502 Bad Gateway。
+# 此函数轮询检查 socket 是否存在且可连接，最多等待 30 秒。
+wait_socket_ready() {
+    local max_wait=30
+    local count=0
+    while [ $count -lt $max_wait ]; do
+        if [ -S "${SOCKET_PATH}" ]; then
+            # socket 文件存在且是 socket 类型，尝试连接验证
+            if nc -U -z "${SOCKET_PATH}" 2>/dev/null; then
+                log_msg "Socket 就绪: ${SOCKET_PATH} (nc 验证通过)"
+                return 0
+            fi
+            # nc 不可用时，仅检查文件存在也视为就绪
+            # （uvicorn 绑定 socket 后文件即存在，通常可立即连接）
+            log_msg "Socket 就绪: ${SOCKET_PATH} (文件已存在)"
+            return 0
+        fi
+        sleep 1
+        count=$((count + 1))
+    done
+    echo "等待 Socket 就绪超时（${max_wait}秒），应用可能启动失败" > "${TRIM_TEMP_LOGFILE}"
+    log_msg "等待 Socket 就绪超时"
+    return 1
+}
+
+start_process() {
+    if status; then
+        return 0
+    fi
+
+    # 清理残留 socket 文件（上次异常退出可能遗留，不清理会导致新进程绑定失败）
+    rm -f "${SOCKET_PATH}"
+
+    log_msg "Starting FlyMail ..."
+
+    # 设置数据目录、Socket 路径和 UI 目录
+    export FLYMAIL_DATA_DIR="${TRIM_PKGVAR}"
+    export SOCKET_PATH="${SOCKET_PATH}"
+    export FLYMAIL_UI_DIR="${TRIM_APPDEST}/ui"
+
+    # 运行 Nuitka 编译的二进制文件（无需 pip 安装依赖）
+    SERVER_BIN="${TRIM_APPDEST}/server/flymail-server"
+
+    if [ ! -f "${SERVER_BIN}" ]; then
+        echo "错误: 找不到服务端程序 ${SERVER_BIN}" > ${TRIM_TEMP_LOGFILE}
+        exit 1
+    fi
+
+    chmod +x "${SERVER_BIN}" 2>/dev/null
+
+    "${SERVER_BIN}" >> ${LOG_FILE} 2>&1 &
+    printf "%s" "$!" > ${PID_FILE}
+
+    log_msg "FlyMail started with PID $!"
+
+    # 等待 socket 就绪，确保 fnOS 网关能立即连接
+    if ! wait_socket_ready; then
+        return 1
+    fi
+    return 0
+}
+
+stop_process() {
+    log_msg "Stopping FlyMail ..."
+    if [ -r "${PID_FILE}" ]; then
+        pid=$(head -n 1 "${PID_FILE}" | tr -d '[:space:]')
+        if ! check_process "${pid}"; then
+            rm -f "${PID_FILE}"
+            return
+        fi
+        log_msg "Sending TERM to PID:${pid}"
+        kill -TERM ${pid} >> ${LOG_FILE} 2>&1
+        local count=0
+        while check_process "${pid}" && [ $count -lt 10 ]; do
+            sleep 1
+            count=$((count + 1))
+        done
+        if check_process "${pid}"; then
+            kill -KILL "${pid}"
+            sleep 1
+        fi
+        rm -f "${PID_FILE}"
+    fi
+    rm -f "${SOCKET_PATH}"
+    return 0
+}
+
+check_process() {
+    kill -0 "$1" 2>/dev/null
+}
+
+status() {
+    if [ -f "${PID_FILE}" ]; then
+        pid=$(head -n 1 "${PID_FILE}" | tr -d '[:space:]')
+        if check_process "${pid}"; then
+            return 0
+        else
+            rm -f "${PID_FILE}"
+        fi
+    fi
+    return 1
+}
+
+case $1 in
+start) start_process ;;
+stop)  stop_process ;;
+status)
+    if status; then exit 0; else exit 3; fi
+    ;;
+*) exit 1 ;;
+esac

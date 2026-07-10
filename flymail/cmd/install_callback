@@ -1,0 +1,6 @@
+#!/bin/bash
+# 安装完成后的回调脚本
+# 确保应用数据目录存在（TRIM_PKGVAR 由飞牛OS自动创建，这里做防御性检查）
+echo "FlyMail install_callback"
+mkdir -p "${TRIM_PKGVAR}"
+echo "Data directory ready: ${TRIM_PKGVAR}"

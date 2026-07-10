@@ -1,0 +1,15 @@
+{
+  ".url": {
+    "flymail.APPLICATION": {
+      "title": "飞邮",
+      "desc": "飞邮 - 飞牛OS邮件托管应用",
+      "icon": "images/icon_{0}.png",
+      "type": "iframe",
+      "protocol": "",
+      "gatewaySocket": "flymail.sock",
+      "gatewayPrefix": "/app/flymail",
+      "url": "/app/flymail",
+      "allUsers": true
+    }
+  }
+}

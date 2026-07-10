@@ -1,0 +1,472 @@
+name: 构建 FlyMail
+
+on:
+  push:
+    tags: ['flymail-v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号（留空则读取 manifest 默认版本）'
+        required: false
+        default: ''
+      create_release:
+        description: '创建 GitHub Release'
+        required: false
+        default: 'true'
+        type: choice
+        options: ['true', 'false']
+      update_fnpack:
+        description: '更新 fnpack.json 版本信息'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['true', 'false']
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  FLYMAIL_REPO: DinDing1/FlyMail
+  FLYMAIL_BRANCH: feature/microsoft-outlook
+
+jobs:
+  # ========== Job 1: 构建前端（只需一次，不依赖架构） ==========
+  build-frontend:
+    runs-on: ubuntu-latest
+    name: 构建前端
+    steps:
+      - name: 检出 FlyMail 源码
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.FLYMAIL_REPO }}
+          ref: ${{ env.FLYMAIL_BRANCH }}
+          token: ${{ secrets.FLYMAIL_REPO_TOKEN }}
+          path: flymail-src
+
+      - name: 配置 Node.js 环境
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: 构建前端
+        run: |
+          cd flymail-src/frontend
+          rm -rf node_modules package-lock.json
+          npm install
+          npm run build
+          echo "前端构建完成"
+
+      - name: 上传前端产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: flymail-src/dist/ui/
+          retention-days: 1
+
+  # ========== Job 2: 编译 x86 后端 ==========
+  build-backend-x86:
+    runs-on: ubuntu-latest
+    name: 编译后端 x86_64
+    steps:
+      - name: 检出 FlyMail 源码
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.FLYMAIL_REPO }}
+          ref: ${{ env.FLYMAIL_BRANCH }}
+          token: ${{ secrets.FLYMAIL_REPO_TOKEN }}
+          path: flymail-src
+
+      - name: 编译 Python 后端 (Nuitka)
+        run: |
+          mkdir -p /tmp/nuitka-out
+          echo "在 x86 runner 上编译..."
+          docker run --rm --platform linux/amd64 \
+            -v $PWD/flymail-src/backend:/build \
+            -v /tmp/nuitka-out:/output \
+            python:3.11-slim-bookworm \
+            bash -c "
+              apt-get update -qq && apt-get install -y -qq patchelf gcc > /dev/null &&
+              pip install 'nuitka[onefile]' ordered-set websockets --quiet &&
+              pip install -r /build/requirements.txt --quiet &&
+              cd /build &&
+              python -m nuitka --standalone --onefile \
+                --lto=no \
+                --include-package=db \
+                --include-package=models \
+                --include-package=providers \
+                --include-package=services \
+                --include-module=aiosqlite \
+                --include-module=aioimaplib \
+                --include-module=uvicorn \
+                --include-module=uvicorn.lifespan.on \
+                --include-module=uvicorn.lifespan.off \
+                --include-module=uvicorn.protocols.websockets.auto \
+                --include-module=uvicorn.protocols.websockets.wsproto_impl \
+                --include-module=uvicorn.protocols.websockets.websockets_impl \
+                --include-module=uvicorn.protocols.http.auto \
+                --include-module=uvicorn.protocols.http.h11_impl \
+                --include-module=uvicorn.protocols.http.httptools_impl \
+                --include-module=uvicorn.logging \
+                --include-module=uvicorn.loops \
+                --include-module=uvicorn.loops.auto \
+                --include-module=uvicorn.loops.asyncio \
+                --include-module=email.mime.text \
+                --include-module=email.mime.multipart \
+                --include-module=httpx \
+                --include-module=fastapi \
+                --include-module=starlette \
+                --include-module=starlette.middleware \
+                --include-module=starlette.routing \
+                --include-module=starlette.requests \
+                --include-module=starlette.responses \
+                --include-module=starlette.websockets \
+                --include-module=websockets \
+                --include-module=websockets.legacy \
+                --include-module=websockets.legacy.server \
+                --include-module=websockets.legacy.protocol \
+                --include-module=websockets.server \
+                --include-module=websockets.connection \
+                --include-module=websockets.http \
+                --include-module=websockets.http11 \
+                --include-module=websockets.uri \
+                --include-module=websockets.typing \
+                --include-module=websockets.exceptions \
+                --include-module=websockets.utils \
+                --include-module=apscheduler \
+                --include-module=apscheduler.schedulers \
+                --include-module=apscheduler.schedulers.base \
+                --include-module=apscheduler.schedulers.asyncio \
+                --include-module=apscheduler.jobstores \
+                --include-module=apscheduler.jobstores.base \
+                --include-module=apscheduler.jobstores.sqlalchemy \
+                --include-module=apscheduler.triggers \
+                --include-module=apscheduler.triggers.date \
+                --include-module=apscheduler.executors \
+                --include-module=apscheduler.executors.base \
+                --include-module=apscheduler.executors.pool \
+                --include-module=sqlalchemy \
+                --include-module=sqlalchemy.engine \
+                --include-module=sqlalchemy.pool \
+                --include-module=sqlalchemy.orm \
+                --include-module=sqlalchemy.sql \
+                --include-module=sqlalchemy.event \
+                --include-module=multipart \
+                --output-filename=flymail-server \
+                --output-dir=/output \
+                main.py &&
+              echo '编译完成'
+            "
+          echo "x86 编译完成"
+          ls -lh /tmp/nuitka-out/flymail-server
+
+      - name: 上传后端产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-x86_64
+          path: /tmp/nuitka-out/flymail-server
+          retention-days: 1
+
+  # ========== Job 3: 编译 ARM 后端 ==========
+  build-backend-arm:
+    runs-on: ubuntu-24.04-arm
+    name: 编译后端 arm64
+    steps:
+      - name: 检出 FlyMail 源码
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ env.FLYMAIL_REPO }}
+          ref: ${{ env.FLYMAIL_BRANCH }}
+          token: ${{ secrets.FLYMAIL_REPO_TOKEN }}
+          path: flymail-src
+
+      - name: 编译 Python 后端 (Nuitka)
+        run: |
+          mkdir -p /tmp/nuitka-out
+          echo "在 ARM 原生 runner 上编译..."
+          docker run --rm --platform linux/arm64 \
+            -v $PWD/flymail-src/backend:/build \
+            -v /tmp/nuitka-out:/output \
+            python:3.11-slim-bookworm \
+            bash -c "
+              apt-get update -qq && apt-get install -y -qq patchelf gcc > /dev/null &&
+              pip install 'nuitka[onefile]' ordered-set websockets --quiet &&
+              pip install -r /build/requirements.txt --quiet &&
+              cd /build &&
+              python -m nuitka --standalone --onefile \
+                --lto=no \
+                --include-package=db \
+                --include-package=models \
+                --include-package=providers \
+                --include-package=services \
+                --include-module=aiosqlite \
+                --include-module=aioimaplib \
+                --include-module=uvicorn \
+                --include-module=uvicorn.lifespan.on \
+                --include-module=uvicorn.lifespan.off \
+                --include-module=uvicorn.protocols.websockets.auto \
+                --include-module=uvicorn.protocols.websockets.wsproto_impl \
+                --include-module=uvicorn.protocols.websockets.websockets_impl \
+                --include-module=uvicorn.protocols.http.auto \
+                --include-module=uvicorn.protocols.http.h11_impl \
+                --include-module=uvicorn.protocols.http.httptools_impl \
+                --include-module=uvicorn.logging \
+                --include-module=uvicorn.loops \
+                --include-module=uvicorn.loops.auto \
+                --include-module=uvicorn.loops.asyncio \
+                --include-module=email.mime.text \
+                --include-module=email.mime.multipart \
+                --include-module=httpx \
+                --include-module=fastapi \
+                --include-module=starlette \
+                --include-module=starlette.middleware \
+                --include-module=starlette.routing \
+                --include-module=starlette.requests \
+                --include-module=starlette.responses \
+                --include-module=starlette.websockets \
+                --include-module=websockets \
+                --include-module=websockets.legacy \
+                --include-module=websockets.legacy.server \
+                --include-module=websockets.legacy.protocol \
+                --include-module=websockets.server \
+                --include-module=websockets.connection \
+                --include-module=websockets.http \
+                --include-module=websockets.http11 \
+                --include-module=websockets.uri \
+                --include-module=websockets.typing \
+                --include-module=websockets.exceptions \
+                --include-module=websockets.utils \
+                --include-module=apscheduler \
+                --include-module=apscheduler.schedulers \
+                --include-module=apscheduler.schedulers.base \
+                --include-module=apscheduler.schedulers.asyncio \
+                --include-module=apscheduler.jobstores \
+                --include-module=apscheduler.jobstores.base \
+                --include-module=apscheduler.jobstores.sqlalchemy \
+                --include-module=apscheduler.triggers \
+                --include-module=apscheduler.triggers.date \
+                --include-module=apscheduler.executors \
+                --include-module=apscheduler.executors.base \
+                --include-module=apscheduler.executors.pool \
+                --include-module=sqlalchemy \
+                --include-module=sqlalchemy.engine \
+                --include-module=sqlalchemy.pool \
+                --include-module=sqlalchemy.orm \
+                --include-module=sqlalchemy.sql \
+                --include-module=sqlalchemy.event \
+                --include-module=multipart \
+                --output-filename=flymail-server \
+                --output-dir=/output \
+                main.py &&
+              echo '编译完成'
+            "
+          echo "ARM 编译完成"
+          ls -lh /tmp/nuitka-out/flymail-server
+
+      - name: 上传后端产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-arm64
+          path: /tmp/nuitka-out/flymail-server
+          retention-days: 1
+
+  # ========== Job 4: 组装并打包 FPK ==========
+  package:
+    needs: [build-frontend, build-backend-x86, build-backend-arm]
+    runs-on: ubuntu-latest
+    name: 打包 ${{ matrix.arch }}
+    strategy:
+      matrix:
+        include:
+          - arch: x86_64
+            fnpack_platform: x86
+          - arch: arm64
+            fnpack_platform: arm
+    steps:
+      - name: 检出 FnDepot 代码
+        uses: actions/checkout@v4
+
+      - name: 确定版本号
+        id: version
+        working-directory: flymail
+        run: |
+          MANIFEST_VER=$(grep '^version' manifest | awk -F'=' '{print $2}' | tr -d ' ')
+          if [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          elif [[ "${{ github.ref }}" == refs/tags/flymail-v* ]]; then
+            VERSION="${{ github.ref_name }}"
+            VERSION="${VERSION#flymail-v}"
+          else
+            VERSION="${MANIFEST_VER}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "版本号: $VERSION"
+
+      - name: 下载前端产物
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: /tmp/ui-dist/
+
+      - name: 下载后端产物
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-${{ matrix.arch }}
+          path: /tmp/nuitka-out/
+
+      - name: 组装应用文件
+        working-directory: flymail
+        run: |
+          # 前端构建产物 -> flymail/app/ui/
+          rm -rf app/ui/assets app/ui/guide app/ui/*.html app/ui/*.js app/ui/*.css app/ui/*.svg app/ui/*.png
+          cp -r /tmp/ui-dist/* app/ui/
+
+          # 后端二进制 -> flymail/app/server/
+          rm -f app/server/.gitkeep
+          cp /tmp/nuitka-out/flymail-server app/server/flymail-server
+          chmod +x app/server/flymail-server
+
+          echo "应用文件组装完成"
+          ls -la app/server/
+          ls -la app/ui/
+
+      - name: 更新 manifest
+        working-directory: flymail
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          PLATFORM="${{ matrix.fnpack_platform }}"
+          sed -i "s/^version.*/version=${VERSION}/" manifest
+          sed -i "s/^platform.*/platform=${PLATFORM}/" manifest
+
+      - name: 修复脚本权限
+        working-directory: flymail
+        run: |
+          for f in cmd/main cmd/install_init cmd/install_callback cmd/uninstall_init cmd/uninstall_callback cmd/upgrade_init cmd/upgrade_callback cmd/config_init cmd/config_callback; do
+            [ -f "$f" ] && sed -i 's/\r$//' "$f" && chmod +x "$f"
+          done
+
+      - name: 下载 fnpack 并打包
+        working-directory: flymail
+        run: |
+          curl -fsSL -o /tmp/fnpack https://static2.fnnas.com/fnpack/fnpack-1.2.1-linux-amd64
+          chmod +x /tmp/fnpack
+          /tmp/fnpack build --directory .
+          FPKN=$(ls *.fpk) && mv "$FPKN" flymail-${{ matrix.arch == 'x86_64' && 'X86' || 'ARM' }}.fpk
+          echo "构建完成: $(ls -lh *.fpk)"
+
+      - name: 上传 FPK
+        uses: actions/upload-artifact@v4
+        with:
+          name: flymail-${{ matrix.arch }}
+          path: flymail/flymail-*.fpk
+          retention-days: 30
+
+  # ========== Job 5: 创建 Release ==========
+  release:
+    needs: package
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/flymail-v') || github.event.inputs.create_release == 'true'
+    permissions:
+      contents: write
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+
+      - name: 下载所有 FPK
+        uses: actions/download-artifact@v4
+        with:
+          path: ./artifacts/
+
+      - name: 删除旧版本 Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASES=$(gh release list --limit 100 --json tagName --jq '.[].tagName' 2>/dev/null || echo "")
+          echo "$RELEASES" | while read -r tag; do
+            case "$tag" in flymail-*) gh release delete "${tag}" --yes --cleanup-tag 2>/dev/null || true;; esac
+          done
+
+      - name: 确定构建信息
+        id: info
+        working-directory: flymail
+        run: |
+          MANIFEST_VER=$(grep '^version' manifest | awk -F'=' '{print $2}' | tr -d ' ')
+          if [[ "${{ github.ref }}" == refs/tags/flymail-v* ]]; then
+            TAG="${{ github.ref_name }}" && VERSION="${TAG#flymail-v}"
+          elif [ -n "${{ github.event.inputs.version }}" ]; then
+            TAG="flymail-v${{ github.event.inputs.version }}" && VERSION="${{ github.event.inputs.version }}"
+          else
+            TAG="flymail-v${MANIFEST_VER}" && VERSION="${MANIFEST_VER}"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: 生成 Release 说明
+        working-directory: flymail
+        run: |
+          CHANGELOG=$(grep '^changelog' manifest | sed 's/^changelog *= *//')
+          cat > /tmp/release-notes.md << EOF
+          ## 飞邮 FlyMail v${{ steps.info.outputs.version }}
+
+          **包含文件：**
+          - flymail-X86.fpk (x86_64 架构)
+          - flymail-ARM.fpk (arm64 架构)
+
+          **更新内容：**
+          $CHANGELOG
+
+          **安装说明：**
+          根据设备架构下载对应 .fpk 文件，在飞牛 fnOS 应用管理中上传安装。
+
+          **源码仓库：**
+          - [DinDing1/FlyMail (feature/microsoft-outlook 分支)](https://github.com/${{ env.FLYMAIL_REPO }}/tree/${{ env.FLYMAIL_BRANCH }})
+          EOF
+
+      - name: 创建 Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ steps.info.outputs.tag }}" \
+            --title "飞邮 FlyMail v${{ steps.info.outputs.version }}" \
+            --notes-file /tmp/release-notes.md \
+            artifacts/flymail-x86_64/flymail-X86.fpk \
+            artifacts/flymail-arm64/flymail-ARM.fpk
+
+  # ========== Job 6: 更新 fnpack.json ==========
+  update-fnpack:
+    needs: release
+    runs-on: ubuntu-latest
+    if: github.event.inputs.update_fnpack == 'true' || startsWith(github.ref, 'refs/tags/flymail-v')
+    permissions:
+      contents: write
+    steps:
+      - name: 检出代码
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: 确定版本号
+        id: version
+        working-directory: flymail
+        run: |
+          MANIFEST_VER=$(grep '^version' manifest | awk -F'=' '{print $2}' | tr -d ' ')
+          if [[ "${{ github.ref }}" == refs/tags/flymail-v* ]]; then
+            VERSION="${{ github.ref_name }}"
+            VERSION="${VERSION#flymail-v}"
+          elif [ -n "${{ github.event.inputs.version }}" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          else
+            VERSION="${MANIFEST_VER}"
+          fi
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          TAG="flymail-v${VERSION}"
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: 更新 fnpack.json
+        run: |
+          python3 scripts/update-fnpack.py flymail ${{ steps.version.outputs.tag }} cliii-one/FnDepot
+
+      - name: 提交并推送更新
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add fnpack.json
+          git commit -m "chore: update flymail version to ${{ steps.version.outputs.version }}" || exit 0
+          git push origin HEAD:main

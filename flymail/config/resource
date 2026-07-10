@@ -1,0 +1,14 @@
+{
+    "data-share": {
+        "shares": [
+            {
+                "name": "flymail",
+                "permission": {
+                    "rw": [
+                        "flymail"
+                    ]
+                }
+            }
+        ]
+    }
+}
