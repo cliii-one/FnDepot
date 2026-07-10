@@ -63,7 +63,7 @@ jobs:
         env:
           PRIVATE_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
         run: |
-          git clone --depth=1 -b feature/microsoft-outlook https://x-access-token:${PRIVATE_TOKEN}@github.com/DinDing1/FlyMail.git /tmp/flymail-src
+          git clone --depth=1 -b main https://x-access-token:${PRIVATE_TOKEN}@github.com/DinDing1/FlyMail.git /tmp/flymail-src
           echo "✅ 源码克隆完成"
 
       # ========== 构建前端 ==========
