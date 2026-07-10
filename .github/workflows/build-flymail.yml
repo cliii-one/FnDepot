@@ -24,8 +24,6 @@ on:
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-  FLYMAIL_REPO: DinDing1/FlyMail
-  FLYMAIL_BRANCH: feature/microsoft-outlook
 
 jobs:
   # ========== Job 1: 构建前端（只需一次，不依赖架构） ==========
@@ -33,13 +31,12 @@ jobs:
     runs-on: ubuntu-latest
     name: 构建前端
     steps:
-      - name: 检出 FlyMail 源码
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.FLYMAIL_REPO }}
-          ref: ${{ env.FLYMAIL_BRANCH }}
-          token: ${{ secrets.FLYMAIL_REPO_TOKEN }}
-          path: flymail-src
+      - name: 克隆源码仓库
+        env:
+          PRIVATE_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
+        run: |
+          git clone --depth=1 -b feature/microsoft-outlook https://x-access-token:${PRIVATE_TOKEN}@github.com/DinDing1/FlyMail.git /tmp/flymail-src
+          echo "✅ 源码克隆完成"
 
       - name: 配置 Node.js 环境
         uses: actions/setup-node@v4
@@ -48,17 +45,17 @@ jobs:
 
       - name: 构建前端
         run: |
-          cd flymail-src/frontend
+          cd /tmp/flymail-src/frontend
           rm -rf node_modules package-lock.json
           npm install
           npm run build
-          echo "前端构建完成"
+          echo "✅ 前端构建完成"
 
       - name: 上传前端产物
         uses: actions/upload-artifact@v4
         with:
           name: frontend-dist
-          path: flymail-src/dist/ui/
+          path: /tmp/flymail-src/dist/ui/
           retention-days: 1
 
   # ========== Job 2: 编译 x86 后端 ==========
@@ -66,20 +63,19 @@ jobs:
     runs-on: ubuntu-latest
     name: 编译后端 x86_64
     steps:
-      - name: 检出 FlyMail 源码
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.FLYMAIL_REPO }}
-          ref: ${{ env.FLYMAIL_BRANCH }}
-          token: ${{ secrets.FLYMAIL_REPO_TOKEN }}
-          path: flymail-src
+      - name: 克隆源码仓库
+        env:
+          PRIVATE_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
+        run: |
+          git clone --depth=1 -b feature/microsoft-outlook https://x-access-token:${PRIVATE_TOKEN}@github.com/DinDing1/FlyMail.git /tmp/flymail-src
+          echo "✅ 源码克隆完成"
 
       - name: 编译 Python 后端 (Nuitka)
         run: |
           mkdir -p /tmp/nuitka-out
           echo "在 x86 runner 上编译..."
           docker run --rm --platform linux/amd64 \
-            -v $PWD/flymail-src/backend:/build \
+            -v /tmp/flymail-src/backend:/build \
             -v /tmp/nuitka-out:/output \
             python:3.11-slim-bookworm \
             bash -c "
@@ -169,20 +165,19 @@ jobs:
     runs-on: ubuntu-24.04-arm
     name: 编译后端 arm64
     steps:
-      - name: 检出 FlyMail 源码
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ env.FLYMAIL_REPO }}
-          ref: ${{ env.FLYMAIL_BRANCH }}
-          token: ${{ secrets.FLYMAIL_REPO_TOKEN }}
-          path: flymail-src
+      - name: 克隆源码仓库
+        env:
+          PRIVATE_TOKEN: ${{ secrets.PRIVATE_REPO_TOKEN }}
+        run: |
+          git clone --depth=1 -b feature/microsoft-outlook https://x-access-token:${PRIVATE_TOKEN}@github.com/DinDing1/FlyMail.git /tmp/flymail-src
+          echo "✅ 源码克隆完成"
 
       - name: 编译 Python 后端 (Nuitka)
         run: |
           mkdir -p /tmp/nuitka-out
           echo "在 ARM 原生 runner 上编译..."
           docker run --rm --platform linux/arm64 \
-            -v $PWD/flymail-src/backend:/build \
+            -v /tmp/flymail-src/backend:/build \
             -v /tmp/nuitka-out:/output \
             python:3.11-slim-bookworm \
             bash -c "
