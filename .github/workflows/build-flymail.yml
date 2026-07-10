@@ -183,7 +183,6 @@ jobs:
           
           chmod +x fnpack
           echo "✅ fnpack 下载完成"
-          ./fnpack --version
 
       - name: 打包 .fpk
         run: |
