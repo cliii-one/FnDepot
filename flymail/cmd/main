@@ -45,6 +45,13 @@ start_process() {
 
     log_msg "Starting FlyMail ..."
 
+    # 设置 UTF-8 编码环境，避免 Python 在 C locale 下编码中文路径失败
+    # 飞牛系统默认 locale=C，导致 sys.getfilesystemencoding()=ascii，
+    # Path.resolve/exists/mkdir/write_text 等操作中文路径时抛 UnicodeEncodeError
+    # C.UTF-8 是 glibc 内置 locale，不依赖系统语言包，现代 Linux 均支持
+    export LANG=C.UTF-8
+    export LC_ALL=C.UTF-8
+
     # 设置数据目录、Socket 路径和 UI 目录
     export FLYMAIL_DATA_DIR="${TRIM_PKGVAR}"
     export SOCKET_PATH="${SOCKET_PATH}"
