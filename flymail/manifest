@@ -11,4 +11,4 @@ distributor           = cliii_one
 distributor_url       = https://github.com/cliii-one    
 desktop_uidir         = ui
 desktop_applaunchname = flymail.APPLICATION
-changelog             = 1. 支持自定义邮箱配置、因测试面小，有问题就反馈2. 腾讯邮箱添加企业邮箱支持 3. 邮件正文链接点击事件委托处理、及邮件回复逻辑处理 4. 谷歌和微软不再需要填写开发者信息，因谷歌开发者公开API还在申请中，需要使用的需要发送邮箱账号申请内测、谷歌邮箱添加 HTTP 代理配置  5. 其他细节UI优化
+changelog             = 1. 支持邮件备份和eml备份文件导入解析，方便数据迁移
