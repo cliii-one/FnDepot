@@ -1,2 +1,22 @@
 #!/bin/bash
-echo "FlyMail config_callback"
+
+# FlyMail 应用配置变更回调脚本
+# 飞牛 fnOS 在用户保存应用配置后调用
+# 职责：把 TRIM_DATA_ACCESSIBLE_PATHS 落盘到 accessible_paths.env
+#       供后端备份功能读取，用于备份路径校验
+
+LOG_FILE="${TRIM_PKGVAR}/info.log"
+ACCESSIBLE_FILE="${TRIM_PKGVAR}/accessible_paths.env"
+
+# 确保数据目录存在
+mkdir -p "${TRIM_PKGVAR}" 2>/dev/null || true
+
+# 写入授权路径（可能为空字符串，覆盖旧值）
+printf "%s" "${TRIM_DATA_ACCESSIBLE_PATHS}" > "${ACCESSIBLE_FILE}" 2>/dev/null || true
+chmod 600 "${ACCESSIBLE_FILE}" 2>/dev/null || true
+
+# 设置属主为应用用户，便于后端读取
+chown "${TRIM_USERNAME}:${TRIM_USERNAME}" "${ACCESSIBLE_FILE}" 2>/dev/null || true
+
+echo "$(date '+%Y-%m-%d %H:%M:%S') - config_callback: 已保存授权路径到 accessible_paths.env" >> "${LOG_FILE}" 2>/dev/null || true
+exit 0
