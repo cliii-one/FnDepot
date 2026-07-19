@@ -56,6 +56,8 @@ start_process() {
     export FLYMAIL_DATA_DIR="${TRIM_PKGVAR}"
     export SOCKET_PATH="${SOCKET_PATH}"
     export FLYMAIL_UI_DIR="${TRIM_APPDEST}/ui"
+    # 通知图片字体/LOGO（仅一份旁路，避免 Nuitka 双份打包）
+    export FLYMAIL_NOTIFY_ASSETS="${TRIM_APPDEST}/server/notify-assets"
 
     # 运行 Nuitka 编译的二进制文件（无需 pip 安装依赖）
     SERVER_BIN="${TRIM_APPDEST}/server/flymail-server"
