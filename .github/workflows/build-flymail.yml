@@ -108,6 +108,12 @@ jobs:
                 --include-package=models \
                 --include-package=providers \
                 --include-package=services \
+                --include-data-dir=/build/services/notify/assets=services/notify/assets \
+                --include-package=PIL \
+                --include-module=PIL.Image \
+                --include-module=PIL.ImageDraw \
+                --include-module=PIL.ImageFont \
+                --include-module=PIL.ImageFilter \
                 --include-module=aiosqlite \
                 --include-module=aioimaplib \
                 --include-module=uvicorn \
@@ -190,6 +196,12 @@ jobs:
           mkdir -p app/server
           cp /tmp/nuitka-out/flymail-server app/server/flymail-server
           chmod +x app/server/flymail-server
+          # 通知图片模式：中文字体 + LOGO（旁路资源，避免中文方框）
+          rm -rf app/server/notify-assets
+          mkdir -p app/server/notify-assets
+          cp -f /tmp/flymail-src/backend/services/notify/assets/SourceHanSansSC-Regular.otf app/server/notify-assets/ || true
+          cp -f /tmp/flymail-src/backend/services/notify/assets/icon.png app/server/notify-assets/ || true
+          ls -la app/server/notify-assets/ || true
           echo "✅ 应用文件组装完成"
 
       # ========== 更新 manifest ==========
