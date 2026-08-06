@@ -11,4 +11,4 @@ distributor           = cliii_one
 distributor_url       = https://github.com/cliii-one    
 desktop_uidir         = ui
 desktop_applaunchname = flymail.APPLICATION
-changelog             = 1. 修复写邮件粘贴 Excel 可滚动并保留表格颜色
+changelog             = 1. 前端细节优化
