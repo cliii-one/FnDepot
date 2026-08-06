@@ -144,7 +144,6 @@ jobs:
                 --include-module=websockets.legacy.protocol \
                 --include-module=websockets.server \
                 --include-module=websockets.connection \
-                --include-module=websockets.http \
                 --include-module=websockets.http11 \
                 --include-module=websockets.uri \
                 --include-module=websockets.typing \
